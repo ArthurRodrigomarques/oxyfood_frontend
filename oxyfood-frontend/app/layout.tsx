@@ -24,10 +24,8 @@ export default function RootLayout({
           inter.variable
         )}
       >
-        <div className="dark">
-          {children}
-          <Toaster richColors position="top-right" />
-        </div>
+        {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

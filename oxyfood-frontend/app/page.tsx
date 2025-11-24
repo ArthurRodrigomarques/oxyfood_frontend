@@ -13,9 +13,7 @@ export default function Home() {
         </p>
 
         <Button asChild className="mt-8">
-          <Link href="/restaurants/hamburgueria-do-ze">
-            Ver Cardápio Mockado
-          </Link>
+          <Link href="/restaurants/hamburgueria-do-ze">Ver Cardápio</Link>
         </Button>
       </div>
     </main>

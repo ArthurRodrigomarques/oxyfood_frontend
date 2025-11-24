@@ -48,7 +48,7 @@ export const mockRestaurant: { restaurant: RestaurantData } = {
     id: "4fce2fd8-40f5-4a70-b922-32999bb50c3f",
     name: "OxyFood",
     slug: "hamburgueria-do-ze",
-    logoUrl: "https://imgur.com/logo.png",
+    logoUrl: "https://imgur.com/logo.png", // Pode manter o logo externo ou baixar um para public também
     addressText: "Hamburgueria Artesanal",
     phoneNumber: "13999998888",
     isOpen: true,
@@ -65,8 +65,8 @@ export const mockRestaurant: { restaurant: RestaurantData } = {
             description:
               "Dois hambúrgueres de 150g, queijo cheddar, alface, tomate e molho especial",
             basePrice: "28.90",
-            imageUrl:
-              "https://placehold.co/600x400/FF5733/FFFFFF?text=X-Burger",
+            // MUDANÇA AQUI: Usando a imagem local da pasta public
+            imageUrl: "/hamburguer.jpg",
             categoryId: "c27d9746-e614-402c-9c90-b47a799d3866",
             optionGroups: [
               {
@@ -119,7 +119,8 @@ export const mockRestaurant: { restaurant: RestaurantData } = {
             description:
               "Hambúrguer artesanal 200g, bacon crocante, queijo, cebola caramelizada",
             basePrice: "32.90",
-            imageUrl: "https://placehold.co/600x400/E67E22/FFFFFF?text=X-Bacon",
+            // MUDANÇA AQUI
+            imageUrl: "/hamburguer.jpg",
             categoryId: "c27d9746-e614-402c-9c90-b47a799d3866",
             optionGroups: [],
           },
@@ -135,8 +136,8 @@ export const mockRestaurant: { restaurant: RestaurantData } = {
             name: "Coca-Cola Lata",
             description: "350ml, gelada.",
             basePrice: "6.0",
-            imageUrl:
-              "https://placehold.co/600x400/4F4F4F/FFFFFF?text=Coca-Cola",
+            // MUDANÇA AQUI (Pode colocar uma foto de refri depois: /coca.jpg)
+            imageUrl: "/hamburguer.jpg",
             categoryId: "d38e0857-f70a-407b-9c60-c58b800d48b1",
             optionGroups: [],
           },
