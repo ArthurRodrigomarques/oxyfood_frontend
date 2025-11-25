@@ -83,7 +83,7 @@ export function MenuManagement() {
             setEditingProduct(null);
             setIsDialogOpen(true);
           }}
-          className="bg-orange-900 hover:bg-orange-800 text-white font-medium shadow-sm h-10 px-6"
+          className="bg-orange-500 hover:bg-orange-700 text-white font-medium shadow-sm h-10 px-6"
         >
           <Plus className="mr-2 h-4 w-4" />
           Novo Produto
