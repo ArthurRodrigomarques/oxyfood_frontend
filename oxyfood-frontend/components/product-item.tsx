@@ -8,7 +8,6 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { ProductModal } from "./product-modal";
 import { useCartStore } from "@/store/cart-store";
-// A linha 'import { toast } from "sonner"' foi removida daqui
 
 interface ProductItemProps {
   product: Product;
