@@ -10,8 +10,54 @@ import { ProductCard } from "@/components/product-card";
 import { api } from "@/lib/api";
 import { RestaurantData } from "@/data/mock-restaurant";
 
-export default function RestaurantPage() {
-  const { restaurant } = mockRestaurant;
+interface RestaurantPageProps {
+  params: Promise<{
+    slug: string;
+  }>;
+}
+
+/**
+ * Função de busca de dados do restaurante (Server-Side)
+ * @param slug Identificador único do restaurante na URL
+ */
+async function getRestaurantData(slug: string): Promise<RestaurantData | null> {
+  try {
+    const response = await api.get<{ restaurant: RestaurantData }>(
+      `/restaurants/${slug}`
+    );
+    return response.data.restaurant;
+  } catch (error) {
+    console.error(`Erro ao buscar restaurante [${slug}]:`, error);
+    return null;
+  }
+}
+
+/**
+ * metadados dinâmicos para SEO
+ */
+export async function generateMetadata({
+  params,
+}: RestaurantPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const restaurant = await getRestaurantData(slug);
+
+  if (!restaurant) {
+    return { title: "Restaurante não encontrado" };
+  }
+
+  return {
+    title: `${restaurant.name} | OxyFood`,
+    description: `Peça delivery em ${restaurant.name}. O melhor cardápio da região.`,
+  };
+}
+
+export default async function RestaurantPage({ params }: RestaurantPageProps) {
+  const { slug } = await params;
+  const restaurant = await getRestaurantData(slug);
+
+  if (!restaurant) {
+    notFound();
+  }
 
   // Organização das categorias para exibição
   const lanches = restaurant.categories.find((c) => c.name === "Lanches");
