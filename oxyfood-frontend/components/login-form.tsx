@@ -17,7 +17,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Validação
 const loginSchema = z.object({
   email: z.string().email("Digite um e-mail válido."),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres."),
@@ -42,7 +41,6 @@ export function LoginForm() {
     try {
       setIsLoading(true);
 
-      // 1. Fazer Login
       const response = await api.post("/auth/login", {
         email: data.email,
         password: data.password,
@@ -50,25 +48,25 @@ export function LoginForm() {
 
       const { token } = response.data;
 
-      // Salvar no localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("oxyfood-token", token);
       }
 
-      // 2. Buscar dados do Utilizador (/me)
       const profileResponse = await api.get("/me");
       const { user } = profileResponse.data;
 
-      // 3. Atualizar a Store Global
       login(token, user);
-
       toast.success(`Bem-vindo de volta, ${user.name}!`);
-      router.push("/admin/dashboard");
+
+      if (user.restaurants && user.restaurants.length > 0) {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/admin/onboarding");
+      }
     } catch (error) {
       console.error(error);
       let errorMessage = "Ocorreu um erro ao fazer login.";
 
-      // Tratamento de erro tipado
       if (error instanceof AxiosError) {
         errorMessage = error.response?.data?.message || errorMessage;
       }
@@ -84,12 +82,9 @@ export function LoginForm() {
   return (
     <Card className="border-none shadow-xl bg-white/80 backdrop-blur-sm">
       <CardHeader className="space-y-4 flex flex-col items-center pb-2">
-        {/* Logo Circular Laranja */}
         <div className="bg-primary p-3 rounded-full w-16 h-16 flex items-center justify-center mb-2 shadow-md">
           <UtensilsCrossed className="text-white h-8 w-8" />
         </div>
-
-        {/* Títulos */}
         <div className="text-center space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             OxyFood
@@ -102,11 +97,8 @@ export function LoginForm() {
 
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit(handleLogin)} className="space-y-6">
-          {/* Campo Email */}
           <div className="space-y-2">
-            <Label htmlFor="email" className="font-semibold text-sm">
-              Email
-            </Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               placeholder="seu@email.com"
@@ -121,11 +113,8 @@ export function LoginForm() {
             )}
           </div>
 
-          {/* Campo Senha */}
           <div className="space-y-2">
-            <Label htmlFor="password" className="font-semibold text-sm">
-              Senha
-            </Label>
+            <Label htmlFor="password">Senha</Label>
             <Input
               id="password"
               type="password"
@@ -140,7 +129,6 @@ export function LoginForm() {
             )}
           </div>
 
-          {/* Botão Laranja */}
           <Button
             className="w-full h-11 text-base font-medium mt-2 shadow-sm hover:shadow-md transition-all"
             type="submit"

@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MobileSidebar } from "@/components/admin/mobile-sidebar";
 import { OrderColumn } from "@/components/admin/order-column";
+import { OnboardingRestaurant } from "@/components/admin/onboarding-restaurant";
+import { useAuthStore } from "@/store/auth-store";
 import { Order } from "@/types/order";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -12,8 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Bell, Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-
-const RESTAURANT_ID = "4fce2fd8-40f5-4a70-b922-32999bb50c3f";
 
 interface ApiOrderItem {
   id: string;
@@ -43,13 +43,14 @@ interface ApiResponse {
 export default function DashboardPage() {
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const queryClient = useQueryClient();
+  const { activeRestaurantId } = useAuthStore();
 
-  // 1. BUSCAR PEDIDOS (GET)
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["orders", RESTAURANT_ID],
+    queryKey: ["orders", activeRestaurantId],
     queryFn: async () => {
+      if (!activeRestaurantId) return [];
       const response = await api.get<ApiResponse>(
-        `/restaurants/${RESTAURANT_ID}/orders`
+        `/restaurants/${activeRestaurantId}/orders`
       );
 
       return response.data.orders.map((order) => ({
@@ -70,6 +71,7 @@ export default function DashboardPage() {
         })),
       })) as Order[];
     },
+    enabled: !!activeRestaurantId,
     refetchInterval: 10000,
   });
 
@@ -94,6 +96,14 @@ export default function DashboardPage() {
       toast.error("Erro ao atualizar pedido.");
     },
   });
+
+  if (!activeRestaurantId) {
+    return (
+      <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
+        <OnboardingRestaurant />
+      </main>
+    );
+  }
 
   const handleUpdateStatus = (orderId: string) => {
     const order = orders.find((o) => o.id === orderId);
@@ -131,7 +141,7 @@ export default function DashboardPage() {
               Painel de Pedidos
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
-              OxyFood - Hamburgueria Artesanal
+              Gerencie seus pedidos em tempo real
             </p>
           </div>
         </div>
