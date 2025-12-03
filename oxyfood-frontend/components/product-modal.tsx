@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Drawer,
@@ -18,7 +17,6 @@ import {
   DrawerClose,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -27,7 +25,10 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useCartStore } from "@/store/cart-store";
+import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { Minus, Plus, ShoppingBag } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ProductModalProps {
   product: Product;
@@ -36,7 +37,7 @@ interface ProductModalProps {
 }
 
 type SelectedOptions = {
-  [groupId: string]: Option | Option[];
+  [groupId: string]: Option[];
 };
 
 function ProductModalContent({ product, onClose }: ProductModalProps) {
@@ -46,85 +47,61 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
   const addItemToCart = useCartStore((state) => state.addItem);
 
   const totalPrice = useMemo(() => {
-    let base = parseFloat(product.basePrice);
+    let base = Number(product.basePrice);
 
-    Object.values(selectedOptions).forEach((optionOrOptions) => {
-      if (Array.isArray(optionOrOptions)) {
-        optionOrOptions.forEach((opt) => {
-          base += parseFloat(opt.priceDelta);
-        });
-      } else if (optionOrOptions) {
-        base += parseFloat(optionOrOptions.priceDelta);
-      }
-    });
+    Object.values(selectedOptions)
+      .flat()
+      .forEach((opt) => {
+        base += Number(opt.priceDelta);
+      });
 
     return base * quantity;
   }, [product, quantity, selectedOptions]);
 
-  function handleOptionChange(
+  const handleOptionToggle = (
     group: OptionGroup,
     option: Option,
-    checked?: boolean
-  ) {
+    checked: boolean
+  ) => {
     setSelectedOptions((prev) => {
-      const newOptions = { ...prev };
-      const currentGroupSelection = newOptions[group.id];
+      const currentSelection = prev[group.id] || [];
 
       if (group.type === "SINGLE") {
-        newOptions[group.id] = option;
-      } else if (group.type === "MULTIPLE") {
-        let newGroupArray: Option[] = Array.isArray(currentGroupSelection)
-          ? [...currentGroupSelection]
-          : [];
-
-        if (checked) {
-          if (newGroupArray.length < group.maxSelection) {
-            newGroupArray.push(option);
-          } else {
-            toast.warning(
-              `Máximo de ${
-                group.maxSelection
-              } ${group.name.toLowerCase()} atingido.`
-            );
-            return prev;
-          }
-        } else {
-          newGroupArray = newGroupArray.filter((opt) => opt.id !== option.id);
-        }
-        newOptions[group.id] = newGroupArray;
+        return { ...prev, [group.id]: [option] };
       }
 
-      return newOptions;
-    });
-  }
-
-  function handleAddToCart() {
-    for (const group of product.optionGroups) {
-      if (group.minSelection > 0) {
-        const selection = selectedOptions[group.id];
-        const selectionCount = Array.isArray(selection)
-          ? selection.length
-          : selection
-          ? 1
-          : 0;
-
-        if (selectionCount < group.minSelection) {
-          toast.error(
-            `Selecione pelo menos ${
-              group.minSelection
-            } ${group.name.toLowerCase()}.`
-          );
-          return;
+      if (checked) {
+        if (currentSelection.length >= group.maxSelection) {
+          toast.warning(`Máximo de ${group.maxSelection} opções permitido.`);
+          return prev;
         }
+        return { ...prev, [group.id]: [...currentSelection, option] };
+      } else {
+        return {
+          ...prev,
+          [group.id]: currentSelection.filter((o) => o.id !== option.id),
+        };
+      }
+    });
+  };
+
+  const handleAddToCart = () => {
+    for (const group of product.optionGroups) {
+      const selection = selectedOptions[group.id] || [];
+      if (selection.length < group.minSelection) {
+        toast.error(
+          `Selecione pelo menos ${group.minSelection} opção em "${group.name}".`
+        );
+        const element = document.getElementById(`group-${group.id}`);
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
       }
     }
-
-    const allSelectedOptions = Object.values(selectedOptions).flat();
 
     addItemToCart({
       product,
       quantity,
-      selectedOptions: allSelectedOptions,
+      selectedOptions: Object.values(selectedOptions).flat(),
       totalPrice,
       notes,
     });
@@ -134,139 +111,191 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
       setQuantity(1);
       setSelectedOptions({});
       setNotes("");
-    }, 500);
-  }
+    }, 300);
+  };
 
   return (
-    <>
-      <div className="flex flex-col">
-        <div className="relative h-48 w-full">
+    <div className="flex flex-col h-full max-h-[85vh] sm:max-h-[80vh]">
+      <div className="relative h-56 w-full shrink-0">
+        {product.imageUrl ? (
           <Image
-            src={product.imageUrl || "https://placehold.co/600x400"}
+            src={product.imageUrl}
             alt={product.name}
-            layout="fill"
-            objectFit="cover"
+            fill
+            className="object-cover"
           />
+        ) : (
+          <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+            Sem imagem
+          </div>
+        )}
+      </div>
+
+      <div className="px-6 pt-6 pb-2 shrink-0">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">
+            {product.name}
+          </DialogTitle>
+          <DialogDescription className="text-base mt-2">
+            {product.description}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-xl font-bold text-emerald-600">
+            {formatCurrency(product.basePrice)}
+          </span>
         </div>
+      </div>
 
-        <div className="p-4">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-2xl">{product.name}</DialogTitle>
-            <DialogDescription>{product.description}</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-            {product.optionGroups.map((group) => (
-              <fieldset key={group.id} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <legend className="font-medium">{group.name}</legend>
-                  <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                    {group.minSelection > 0 ? `Obrigatório` : "Opcional"}
-                  </span>
+      <ScrollArea className="flex-1 px-6">
+        <div className="space-y-8 py-4">
+          {product.optionGroups.map((group) => (
+            <div key={group.id} id={`group-${group.id}`} className="space-y-4">
+              <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border">
+                <div>
+                  <h4 className="font-semibold text-foreground">
+                    {group.name}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {group.minSelection > 0
+                      ? `Escolha de ${group.minSelection} a ${group.maxSelection}`
+                      : `Até ${group.maxSelection} opções (Opcional)`}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Selecione{" "}
-                  {group.type === "SINGLE"
-                    ? "1 opção"
-                    : `até ${group.maxSelection} ${
-                        group.maxSelection > 1 ? "opções" : "opção"
-                      }`}
-                  .
-                </p>
+                {group.minSelection > 0 && (
+                  <span className="text-[10px] uppercase font-bold bg-muted-foreground/10 text-muted-foreground px-2 py-1 rounded">
+                    Obrigatório
+                  </span>
+                )}
+              </div>
 
-                {group.type === "SINGLE" && (
+              <div className="space-y-1">
+                {group.type === "SINGLE" ? (
                   <RadioGroup
-                    onValueChange={(optionId) => {
-                      const opt = group.options.find((o) => o.id === optionId);
-                      if (opt) handleOptionChange(group, opt);
+                    value={selectedOptions[group.id]?.[0]?.id}
+                    onValueChange={(val) => {
+                      const opt = group.options.find((o) => o.id === val);
+                      if (opt) handleOptionToggle(group, opt, true);
                     }}
                   >
                     {group.options.map((option) => (
                       <div
                         key={option.id}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between py-3 border-b last:border-0 hover:bg-muted/20 px-2 rounded transition-colors"
                       >
-                        <Label
-                          htmlFor={option.id}
-                          className="flex-1 cursor-pointer py-2"
-                        >
-                          {option.name}
-                        </Label>
-                        <span className="text-sm mr-2">
-                          + R$ {parseFloat(option.priceDelta).toFixed(2)}
-                        </span>
-                        <RadioGroupItem value={option.id} id={option.id} />
+                        <div className="flex items-center space-x-3 flex-1 cursor-pointer">
+                          <RadioGroupItem value={option.id} id={option.id} />
+                          <Label
+                            htmlFor={option.id}
+                            className="flex-1 cursor-pointer font-normal text-base"
+                          >
+                            {option.name}
+                          </Label>
+                        </div>
+                        {Number(option.priceDelta) > 0 && (
+                          <span className="text-sm font-medium text-emerald-600">
+                            + {formatCurrency(option.priceDelta)}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </RadioGroup>
-                )}
-
-                {group.type === "MULTIPLE" && (
-                  <div className="space-y-2">
-                    {group.options.map((option) => (
+                ) : (
+                  group.options.map((option) => {
+                    const isChecked =
+                      selectedOptions[group.id]?.some(
+                        (o) => o.id === option.id
+                      ) || false;
+                    return (
                       <div
                         key={option.id}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between py-3 border-b last:border-0 hover:bg-muted/20 px-2 rounded transition-colors"
                       >
-                        <Label
-                          htmlFor={option.id}
-                          className="flex-1 cursor-pointer py-2"
-                        >
-                          {option.name}
-                        </Label>
-                        <span className="text-sm mr-2">
-                          + R$ {parseFloat(option.priceDelta).toFixed(2)}
-                        </span>
-                        <Checkbox
-                          id={option.id}
-                          onCheckedChange={(checked) => {
-                            handleOptionChange(group, option, !!checked);
-                          }}
-                        />
+                        <div className="flex items-center space-x-3 flex-1">
+                          <Checkbox
+                            id={option.id}
+                            checked={isChecked}
+                            onCheckedChange={(checked) =>
+                              handleOptionToggle(group, option, !!checked)
+                            }
+                          />
+                          <Label
+                            htmlFor={option.id}
+                            className="flex-1 cursor-pointer font-normal text-base"
+                          >
+                            {option.name}
+                          </Label>
+                        </div>
+                        {Number(option.priceDelta) > 0 && (
+                          <span className="text-sm font-medium text-emerald-600">
+                            + {formatCurrency(option.priceDelta)}
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })
                 )}
-                <Separator className="mt-4" />
-              </fieldset>
-            ))}
+              </div>
+            </div>
+          ))}
 
-            <fieldset className="space-y-2">
-              <legend className="font-medium">Observações</legend>
-              <Input
-                placeholder="Ex: Tirar a cebola, maionese à parte..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </fieldset>
+          <div className="space-y-3 pt-4">
+            <Label htmlFor="notes" className="font-semibold text-foreground">
+              Alguma observação?
+            </Label>
+            <Input
+              id="notes"
+              placeholder="Ex: Tirar a cebola, maionese à parte..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="bg-muted/30 border-muted-foreground/20 focus:bg-background transition-colors"
+            />
           </div>
         </div>
-      </div>
+      </ScrollArea>
 
-      <DialogFooter className="p-4 flex-col sm:flex-row sm:justify-between items-center w-full gap-2">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-          >
-            -
-          </Button>
-          <span className="font-bold w-8 text-center">{quantity}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setQuantity((q) => q + 1)}
-          >
-            +
-          </Button>
+      <div className="p-6 border-t bg-background mt-auto">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center border rounded-lg h-12 shadow-sm">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-full w-12 rounded-none rounded-l-lg hover:bg-muted/50 text-muted-foreground"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <div className="h-full w-12 flex items-center justify-center font-bold text-lg border-x bg-muted/10">
+              {quantity}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-full w-12 rounded-none rounded-r-lg hover:bg-muted/50 text-primary"
+              onClick={() => setQuantity((q) => q + 1)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground mb-1">Total do item</p>
+            <p className="text-xl font-extrabold text-foreground">
+              {formatCurrency(totalPrice)}
+            </p>
+          </div>
         </div>
 
-        <Button className="flex-1 w-full sm:w-auto" onClick={handleAddToCart}>
-          Adicionar (R$ {totalPrice.toFixed(2)})
+        <Button
+          className="w-full h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all"
+          onClick={handleAddToCart}
+        >
+          <ShoppingBag className="mr-2 h-5 w-5" />
+          Adicionar ao Carrinho
         </Button>
-      </DialogFooter>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -276,7 +305,7 @@ export function ProductModal(props: ProductModalProps) {
   if (isDesktop) {
     return (
       <Dialog open={props.isOpen} onOpenChange={props.onClose}>
-        <DialogContent className="max-w-md p-0 gap-0">
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden border-none shadow-2xl">
           <ProductModalContent {...props} />
         </DialogContent>
       </Dialog>
@@ -285,12 +314,12 @@ export function ProductModal(props: ProductModalProps) {
 
   return (
     <Drawer open={props.isOpen} onClose={props.onClose}>
-      <DrawerContent className="p-0 gap-0">
-        <DrawerHeader className="p-4 pb-0">
-          <DrawerTitle>{props.product.name}</DrawerTitle>
+      <DrawerContent className="p-0 gap-0 max-h-[96vh] rounded-t-xl">
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>Detalhes do Produto</DrawerTitle>
         </DrawerHeader>
         <ProductModalContent {...props} />
-        <DrawerFooter className="pt-2">
+        <DrawerFooter className="sr-only">
           <DrawerClose asChild>
             <Button variant="outline">Cancelar</Button>
           </DrawerClose>

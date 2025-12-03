@@ -1,13 +1,12 @@
 "use client";
 
 import { Product } from "@/data/mock-restaurant";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import Image from "next/image";
-import { Plus } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { Button } from "./ui/button";
+import { Plus, Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
 import { ProductModal } from "./product-modal";
-import { useCartStore } from "@/store/cart-store";
+import Image from "next/image";
 
 interface ProductItemProps {
   product: Product;
@@ -15,71 +14,70 @@ interface ProductItemProps {
 
 export function ProductItem({ product }: ProductItemProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const addItemToCart = useCartStore((state) => state.addItem);
 
-  const handleCardClick = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleAddClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (product.optionGroups.length > 0) {
-      setIsModalOpen(true);
-    } else {
-      addItemToCart({
-        product,
-        quantity: 1,
-        selectedOptions: [],
-        totalPrice: parseFloat(product.basePrice),
-      });
-    }
-  };
+  const basePrice =
+    product.optionGroups && product.optionGroups.length > 0
+      ? Math.min(
+          ...product.optionGroups.flatMap((g) =>
+            g.options.map((o) => Number(o.priceDelta))
+          )
+        ) === 0
+        ? Number(product.basePrice)
+        : Number(product.basePrice)
+      : Number(product.basePrice);
 
   return (
     <>
-      <Card
-        className="hover:bg-muted/50 cursor-pointer"
-        onClick={handleCardClick}
+      <div
+        className="group flex flex-col sm:flex-row bg-white rounded-xl border border-gray-200 p-4 cursor-pointer transition-all duration-200 hover:border-orange-300 hover:shadow-lg hover:-translate-y-0.5"
+        onClick={() => setIsModalOpen(true)}
       >
-        <CardContent className="p-4">
-          <article className="flex gap-4">
-            <div className="flex-1 space-y-1">
-              <h3 className="font-semibold">{product.name}</h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">
+        <div className="relative w-full sm:w-32 h-32 sm:h-32 shrink-0 rounded-lg overflow-hidden bg-gray-100 mb-4 sm:mb-0 sm:mr-6">
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <ImageIcon className="h-8 w-8" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-gray-900 text-lg mb-1 group-hover:text-orange-600 transition-colors">
+              {product.name}
+            </h3>
+            {product.description && (
+              <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">
                 {product.description}
               </p>
-              <p className="font-bold text-lg">
-                R$ {parseFloat(product.basePrice).toFixed(2)}
-              </p>
-            </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-lg font-bold text-orange-600">
+              {formatCurrency(basePrice)}
+            </span>
 
             <Button
-              size="icon"
-              className="hidden sm:flex"
-              onClick={handleAddClick}
+              size="sm"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-4 shadow-sm group-hover:shadow-md transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsModalOpen(true);
+              }}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-1.5" />
+              Adicionar
             </Button>
-
-            <figure className="relative w-24 h-24 rounded-md overflow-hidden">
-              <Image
-                src={
-                  product.imageUrl ||
-                  "https://placehold.co/400x400/CCCCCC/FFFFFF"
-                }
-                alt={product.name}
-                layout="fill"
-                objectFit="cover"
-              />
-            </figure>
-
-            <Button size="icon" className="sm:hidden" onClick={handleAddClick}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </article>
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </div>
 
       <ProductModal
         product={product}
