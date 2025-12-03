@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useRouter } from "next/router";
 
 const checkoutSchema = z.object({
   customerName: z.string().min(3, "Nome é obrigatório (mín. 3 letras)"),
@@ -50,6 +51,8 @@ interface CheckoutSheetProps {
 }
 
 export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
+  const router = useRouter();
+
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -97,12 +100,19 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
         })),
       };
 
-      await api.post(`/restaurants/${restaurant.id}/orders`, payload);
+      const response = await api.post(
+        `/restaurants/${restaurant.id}/orders`,
+        payload
+      );
+
+      const newOrderId = response.data.order.id;
 
       toast.success("Pedido realizado com sucesso!");
       clearCart();
       reset();
       setIsOpen(false);
+
+      router.push(`/orders/${newOrderId}`);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao enviar pedido. Tente novamente.");

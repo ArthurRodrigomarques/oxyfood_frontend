@@ -1,148 +1,186 @@
-import { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { RestaurantHeader } from "@/components/restaurant-header";
-import { CategoryList } from "@/components/category-list";
-import { Separator } from "@/components/ui/separator";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { ProductItem } from "@/components/product-item";
-import { ProductCard } from "@/components/product-card";
+"use client";
+
+import { use } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { RestaurantData } from "@/data/mock-restaurant";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Loader2,
+  CheckCircle2,
+  ChefHat,
+  Bike,
+  MapPin,
+  XCircle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-interface RestaurantPageProps {
-  params: Promise<{
-    slug: string;
-  }>;
+// Status possíveis vindos do backend
+type OrderStatus = "PENDING" | "PREPARING" | "OUT" | "COMPLETED" | "REJECTED";
+
+interface OrderStatusResponse {
+  status: OrderStatus;
+  customerName: string;
 }
 
-/**
- * Função de busca de dados do restaurante (Server-Side)
- * @param slug Identificador único do restaurante na URL
- */
-async function getRestaurantData(slug: string): Promise<RestaurantData | null> {
-  try {
-    const response = await api.get<{ restaurant: RestaurantData }>(
-      `/restaurants/${slug}`
-    );
-    return response.data.restaurant;
-  } catch (error) {
-    console.error(`Erro ao buscar restaurante [${slug}]:`, error);
-    return null;
-  }
-}
-
-/**
- * metadados dinâmicos para SEO
- */
-export async function generateMetadata({
+export default function OrderStatusPage({
   params,
-}: RestaurantPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const restaurant = await getRestaurantData(slug);
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
 
-  if (!restaurant) {
-    return { title: "Restaurante não encontrado" };
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["order-status", id],
+    queryFn: async () => {
+      const response = await api.get<OrderStatusResponse>(
+        `/orders/${id}/status`
+      );
+      return response.data;
+    },
+    refetchInterval: 5000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+        <p className="text-muted-foreground">Buscando seu pedido...</p>
+      </div>
+    );
   }
 
-  return {
-    title: `${restaurant.name} | OxyFood`,
-    description: `Peça delivery em ${restaurant.name}. O melhor cardápio da região.`,
-  };
-}
-
-export default async function RestaurantPage({ params }: RestaurantPageProps) {
-  const { slug } = await params;
-  const restaurant = await getRestaurantData(slug);
-
-  if (!restaurant) {
-    notFound();
+  if (error || !data) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+        <XCircle className="h-12 w-12 text-red-500" />
+        <h1 className="text-xl font-bold">Pedido não encontrado</h1>
+        <Button asChild variant="outline">
+          <Link href="/">Voltar ao Início</Link>
+        </Button>
+      </div>
+    );
   }
 
-  // Organização das categorias para exibição
-  const lanches = restaurant.categories.find((c) => c.name === "Lanches");
-  const bebidas = restaurant.categories.find((c) => c.name === "Bebidas");
-  const destaques = lanches; // Regra de negócio temporária para destaques
+  const steps = [
+    {
+      status: "PENDING",
+      label: "Aguardando Confirmação",
+      icon: Loader2,
+      activeColor: "text-blue-500",
+    },
+    {
+      status: "PREPARING",
+      label: "Em Preparo",
+      icon: ChefHat,
+      activeColor: "text-orange-500",
+    },
+    {
+      status: "OUT",
+      label: "Saiu para Entrega",
+      icon: Bike,
+      activeColor: "text-purple-500",
+    },
+    {
+      status: "COMPLETED",
+      label: "Entregue",
+      icon: CheckCircle2,
+      activeColor: "text-green-500",
+    },
+  ];
+
+  const currentStepIndex = steps.findIndex((s) => s.status === data.status);
+
+  const isRejected = data.status === "REJECTED";
 
   return (
-    <div className="bg-background text-foreground min-h-screen">
-      <RestaurantHeader restaurant={restaurant} />
+    <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+      <Card className="w-full max-w-md shadow-lg border-none">
+        <CardHeader className="text-center pb-2">
+          <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">
+            Pedido #{id.slice(0, 6).toUpperCase()}
+          </p>
+          <CardTitle className="text-2xl text-foreground">
+            Olá, {data.customerName}!
+          </CardTitle>
+        </CardHeader>
 
-      <div className="bg-primary text-primary-foreground text-center text-sm p-2 font-medium">
-        🚚 Entrega Grátis acima de R$ {Number(restaurant.deliveryFee || 0) * 6}!
-      </div>
-
-      <div className="container mx-auto max-w-6xl p-4">
-        {/* Barra de Busca e Filtros */}
-        <div className="relative mb-6">
-          <Input placeholder="Buscar produtos..." className="pl-10" />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        </div>
-
-        <CategoryList restaurant={restaurant} />
-
-        {/* Seção de Destaques */}
-        {destaques && destaques.products.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-xl font-bold tracking-tight mb-4">
-              ⭐ Destaques
-            </h2>
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-              {destaques.products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+        <CardContent className="space-y-8 pt-6">
+          {isRejected ? (
+            <div className="text-center p-6 bg-red-50 rounded-lg border border-red-100">
+              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+              <h3 className="font-bold text-red-700 text-lg">
+                Pedido Cancelado
+              </h3>
+              <p className="text-red-600/80 mt-1">
+                O restaurante não pôde aceitar seu pedido neste momento.
+              </p>
             </div>
-          </section>
-        )}
+          ) : (
+            <div className="relative space-y-8 pl-4">
+              {/* Linha vertical de conexão */}
+              <div className="absolute left-[27px] top-2 bottom-2 w-0.5 bg-gray-200 -z-10" />
 
-        <Separator className="my-8" />
+              {steps.map((step, index) => {
+                const isActive = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
+                const Icon = step.icon;
 
-        <main className="space-y-10">
-          {lanches && lanches.products.length > 0 && (
-            <section className="space-y-4">
-              <h2 className="text-2xl font-bold tracking-tight">
-                🍔 {lanches.name}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                {lanches.products.map((product) => (
-                  <ProductItem key={product.id} product={product} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {bebidas && bebidas.products.length > 0 && (
-            <section className="space-y-4">
-              <h2 className="text-2xl font-bold tracking-tight">
-                🥤 {bebidas.name}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                {bebidas.products.map((product) => (
-                  <ProductItem key={product.id} product={product} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {restaurant.categories
-            .filter((c) => c.name !== "Lanches" && c.name !== "Bebidas")
-            .map(
-              (category) =>
-                category.products.length > 0 && (
-                  <section key={category.id} className="space-y-4">
-                    <h2 className="text-2xl font-bold tracking-tight">
-                      🍽️ {category.name}
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                      {category.products.map((product) => (
-                        <ProductItem key={product.id} product={product} />
-                      ))}
+                return (
+                  <div
+                    key={step.status}
+                    className="flex items-center gap-4 bg-white z-10"
+                  >
+                    <div
+                      className={`h-14 w-14 rounded-full flex items-center justify-center border-2 transition-all ${
+                        isActive || isCompleted
+                          ? `${step.activeColor} border-current bg-white`
+                          : "border-gray-200 text-gray-300 bg-gray-50"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-6 w-6 ${isActive ? "animate-pulse" : ""}`}
+                      />
                     </div>
-                  </section>
-                )
-            )}
-        </main>
-      </div>
+                    <div>
+                      <p
+                        className={`font-bold ${
+                          isActive || isCompleted
+                            ? "text-foreground"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {step.label}
+                      </p>
+                      {isActive && (
+                        <p className="text-xs text-muted-foreground animate-in fade-in">
+                          Atualizado agora mesmo
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <Separator />
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div className="text-sm text-muted-foreground">
+                <p>Endereço de entrega informado no checkout.</p>
+              </div>
+            </div>
+
+            <Button className="w-full" size="lg" asChild>
+              <Link href="/">Fazer Novo Pedido</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
