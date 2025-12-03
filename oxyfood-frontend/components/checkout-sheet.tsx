@@ -32,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 const checkoutSchema = z.object({
   customerName: z.string().min(3, "Nome é obrigatório (mín. 3 letras)"),

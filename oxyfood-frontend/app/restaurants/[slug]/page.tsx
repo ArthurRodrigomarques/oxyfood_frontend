@@ -3,188 +3,82 @@
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import {
-  Loader2,
-  CheckCircle2,
-  ChefHat,
-  Bike,
-  MapPin,
-  XCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { RestaurantHeader } from "@/components/restaurant-header";
+import { CategoryList } from "@/components/category-list";
+import { ProductItem } from "@/components/product-item";
+import { Loader2 } from "lucide-react";
+import { RestaurantData } from "@/data/mock-restaurant";
 
-// Definição dos tipos
-type OrderStatus = "PENDING" | "PREPARING" | "OUT" | "COMPLETED" | "REJECTED";
-
-interface OrderStatusResponse {
-  status: OrderStatus;
-  customerName: string;
+interface RestaurantResponse {
+  restaurant: RestaurantData;
 }
 
-export default function OrderStatusPage({
+export default function RestaurantPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = use(params);
+  const { slug } = use(params);
 
-  const isIdValid = Boolean(id) && id !== "undefined";
-
-  const { data, isLoading, error } = useQuery<OrderStatusResponse | null>({
-    queryKey: ["order-status", id],
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["restaurant-public", slug],
     queryFn: async () => {
-      if (!isIdValid) return null;
-      const response = await api.get<OrderStatusResponse>(
-        `/orders/${id}/status`
+      const response = await api.get<RestaurantResponse>(
+        `/restaurants/${slug}`
       );
       return response.data;
     },
-    refetchInterval: isIdValid ? 5000 : false,
-    enabled: isIdValid,
   });
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
-        <p className="text-muted-foreground">Buscando seu pedido...</p>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (error || !data) {
+  if (isError || !data?.restaurant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
-        <XCircle className="h-12 w-12 text-red-500" />
-        <h1 className="text-xl font-bold">Pedido não encontrado</h1>
-        <Button asChild variant="outline">
-          <Link href="/">Voltar ao Início</Link>
-        </Button>
+      <div className="flex h-screen flex-col items-center justify-center gap-4">
+        <h1 className="text-2xl font-bold">Restaurante não encontrado :(</h1>
+        <p className="text-muted-foreground">
+          Verifique o endereço e tente novamente.
+        </p>
       </div>
     );
   }
 
-  const steps = [
-    {
-      status: "PENDING",
-      label: "Aguardando Confirmação",
-      icon: Loader2,
-      activeColor: "text-blue-500",
-    },
-    {
-      status: "PREPARING",
-      label: "Em Preparo",
-      icon: ChefHat,
-      activeColor: "text-orange-500",
-    },
-    {
-      status: "OUT",
-      label: "Saiu para Entrega",
-      icon: Bike,
-      activeColor: "text-purple-500",
-    },
-    {
-      status: "COMPLETED",
-      label: "Entregue",
-      icon: CheckCircle2,
-      activeColor: "text-green-500",
-    },
-  ];
-
-  const currentStepIndex = steps.findIndex((s) => s.status === data.status);
-
-  const isRejected = data.status === "REJECTED";
+  const { restaurant } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
-      <Card className="w-full max-w-md shadow-lg border-none">
-        <CardHeader className="text-center pb-2">
-          <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">
-            Pedido #{id.slice(0, 6).toUpperCase()}
-          </p>
-          <CardTitle className="text-2xl text-foreground">
-            Olá, {data.customerName}!
-          </CardTitle>
-        </CardHeader>
+    <div className="min-h-screen bg-background pb-20">
+      {/* Cabeçalho com infos da loja e Carrinho */}
+      <RestaurantHeader restaurant={restaurant} />
 
-        <CardContent className="space-y-8 pt-6">
-          {isRejected ? (
-            <div className="text-center p-6 bg-red-50 rounded-lg border border-red-100">
-              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
-              <h3 className="font-bold text-red-700 text-lg">
-                Pedido Cancelado
-              </h3>
-              <p className="text-red-600/80 mt-1">
-                O restaurante não pôde aceitar seu pedido neste momento.
-              </p>
-            </div>
-          ) : (
-            <div className="relative space-y-8 pl-4">
-              {/* Linha vertical de conexão */}
-              <div className="absolute left-[27px] top-2 bottom-2 w-0.5 bg-gray-200 -z-10" />
+      {/* Navegação de Categorias */}
+      <CategoryList restaurant={restaurant} />
 
-              {steps.map((step, index) => {
-                const isActive = index === currentStepIndex;
-                const isCompleted = index < currentStepIndex;
-                const Icon = step.icon;
+      {/* Lista de Produtos por Categoria */}
+      <main className="container mx-auto px-4 py-6 space-y-10 max-w-6xl">
+        {restaurant.categories.map((category) => (
+          <section key={category.id} id={category.id} className="scroll-mt-32">
+            <h2 className="text-xl font-bold mb-4">{category.name}</h2>
 
-                return (
-                  <div
-                    key={step.status}
-                    className="flex items-center gap-4 bg-white z-10"
-                  >
-                    <div
-                      className={`h-14 w-14 rounded-full flex items-center justify-center border-2 transition-all ${
-                        isActive || isCompleted
-                          ? `${step.activeColor} border-current bg-white`
-                          : "border-gray-200 text-gray-300 bg-gray-50"
-                      }`}
-                    >
-                      <Icon
-                        className={`h-6 w-6 ${isActive ? "animate-pulse" : ""}`}
-                      />
-                    </div>
-                    <div>
-                      <p
-                        className={`font-bold ${
-                          isActive || isCompleted
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.label}
-                      </p>
-                      {isActive && (
-                        <p className="text-xs text-muted-foreground animate-in fade-in">
-                          Atualizado agora mesmo
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <Separator />
-
-          <div className="space-y-3 pt-2">
-            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-              <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground">
-                <p>Endereço de entrega informado no checkout.</p>
+            {category.products.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {category.products.map((product) => (
+                  <ProductItem key={product.id} product={product} />
+                ))}
               </div>
-            </div>
-
-            <Button className="w-full" size="lg" asChild>
-              <Link href="/">Fazer Novo Pedido</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                Nenhum produto nesta categoria.
+              </p>
+            )}
+          </section>
+        ))}
+      </main>
     </div>
   );
 }
