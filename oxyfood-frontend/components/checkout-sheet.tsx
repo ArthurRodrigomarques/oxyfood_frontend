@@ -86,7 +86,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
     try {
       setIsSubmitting(true);
 
-      // Formatação do payload conforme esperado pelo backend
       const payload = {
         customerName: data.customerName,
         customerPhone: data.customerPhone,
@@ -100,12 +99,21 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
         })),
       };
 
+      console.log("Enviando pedido:", payload);
+
       const response = await api.post(
         `/restaurants/${restaurant.id}/orders`,
         payload
       );
 
-      const newOrderId = response.data.order.id;
+      console.log("Resposta do Backend:", response.data);
+
+      const createdOrder = response.data.order || response.data;
+      const newOrderId = createdOrder.id;
+
+      if (!newOrderId) {
+        throw new Error("O servidor não retornou o ID do pedido.");
+      }
 
       toast.success("Pedido realizado com sucesso!");
       clearCart();
@@ -114,8 +122,8 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
       router.push(`/orders/${newOrderId}`);
     } catch (error) {
-      console.error(error);
-      toast.error("Erro ao enviar pedido. Tente novamente.");
+      console.error("Erro no checkout:", error);
+      toast.error("Erro ao enviar pedido. Verifique o console.");
     } finally {
       setIsSubmitting(false);
     }

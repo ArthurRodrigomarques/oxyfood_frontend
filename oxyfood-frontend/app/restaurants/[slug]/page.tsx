@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-// Status possíveis vindos do backend
+// Definição dos tipos
 type OrderStatus = "PENDING" | "PREPARING" | "OUT" | "COMPLETED" | "REJECTED";
 
 interface OrderStatusResponse {
@@ -31,15 +31,19 @@ export default function OrderStatusPage({
 }) {
   const { id } = use(params);
 
-  const { data, isLoading, error } = useQuery({
+  const isIdValid = Boolean(id) && id !== "undefined";
+
+  const { data, isLoading, error } = useQuery<OrderStatusResponse | null>({
     queryKey: ["order-status", id],
     queryFn: async () => {
+      if (!isIdValid) return null;
       const response = await api.get<OrderStatusResponse>(
         `/orders/${id}/status`
       );
       return response.data;
     },
-    refetchInterval: 5000,
+    refetchInterval: isIdValid ? 5000 : false,
+    enabled: isIdValid,
   });
 
   if (isLoading) {

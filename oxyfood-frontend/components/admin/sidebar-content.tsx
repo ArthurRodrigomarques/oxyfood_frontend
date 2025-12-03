@@ -7,10 +7,12 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 interface SidebarContentProps {
   onLinkClick?: () => void;
@@ -18,10 +20,16 @@ interface SidebarContentProps {
 
 export function SidebarContent({ onLinkClick }: SidebarContentProps) {
   const pathname = usePathname();
+  const { user, activeRestaurantId } = useAuthStore();
 
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(path);
   };
+
+  const activeRestaurant = user?.restaurants?.find(
+    (r) => r.id === activeRestaurantId
+  );
+  const restaurantSlug = activeRestaurant?.slug;
 
   return (
     <div className="flex flex-col h-full bg-white text-foreground">
@@ -102,6 +110,29 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
             Configurações
           </Link>
         </Button>
+
+        {/* --- NOVO BOTÃO: VER LOJA --- */}
+        {restaurantSlug && (
+          <>
+            <div className="my-2 px-2">
+              <div className="h-px bg-gray-100" />
+            </div>
+            <Button
+              variant="outline"
+              className="w-full justify-start text-orange-700 border-orange-200 hover:bg-orange-50 h-12 font-medium"
+              asChild
+            >
+              <a
+                href={`/restaurants/${restaurantSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="mr-3 h-5 w-5" />
+                Ver Minha Loja
+              </a>
+            </Button>
+          </>
+        )}
       </nav>
 
       {/* Footer da Sidebar */}
