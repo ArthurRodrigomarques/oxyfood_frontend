@@ -37,7 +37,7 @@ export function ProductItem({
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors shadow-sm">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
         <Image
-          src={product.image || "/placeholder.png"}
+          src={product.image || "/hamburguer.jpg"}
           alt={product.name}
           fill
           className="object-cover"

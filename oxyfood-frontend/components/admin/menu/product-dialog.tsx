@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { Product } from "@/data/mockData";
+import { FrontendProduct } from "./menu-management";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Image from "next/image";
+import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing";
 
 interface ProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  product: Product | null;
-  onSave: (data: Partial<Product>) => void;
+  product: FrontendProduct | null;
+  onSave: (data: Partial<FrontendProduct>) => void;
 }
 
 export function ProductDialog({
@@ -39,79 +41,129 @@ export function ProductDialog({
   onSave,
 }: ProductDialogProps) {
   const { register, handleSubmit, reset, setValue, control } =
-    useForm<Partial<Product>>();
+    useForm<Partial<FrontendProduct>>();
 
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const imageUrl = useWatch({
-    control,
-    name: "image",
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const imageUrl = useWatch({ control, name: "image" });
+
+  const { startUpload } = useUploadThing("imageUploader", {
+    onUploadError: (error) => {
+      setIsSubmitting(false);
+      toast.error(`Erro no upload: ${error.message}`);
+    },
   });
 
   useEffect(() => {
-    if (
-      imageUrl &&
-      typeof imageUrl === "string" &&
-      imageUrl.startsWith("http")
-    ) {
-      // setImagePreview(imageUrl);
-    }
-  }, [imageUrl]);
+    if (open) {
+      setSelectedFile(null);
+      setIsSubmitting(false);
 
-  useEffect(() => {
-    if (product) {
-      setValue("name", product.name);
-      setValue("description", product.description);
-      setValue("price", product.price);
-      setValue("category", product.category);
-      setValue("image", product.image);
-      // setImagePreview(product.image || null);
-    } else {
-      reset({
-        name: "",
-        description: "",
-        price: 0,
-        category: "lanches",
-        image: "",
-      });
-      // setImagePreview(null);
+      if (product) {
+        reset({
+          name: product.name,
+          description: product.description || "",
+          price: Number(product.price),
+          category: product.category,
+          image: product.image || "",
+          available: product.available,
+        });
+      } else {
+        reset({
+          name: "",
+          description: "",
+          price: 0,
+          category: "Lanches",
+          image: "",
+          available: true,
+        });
+      }
     }
-  }, [product, open, reset, setValue]);
+  }, [product, open, reset]);
 
-  const onSubmit = (data: Partial<Product>) => {
-    const formattedData = { ...data, price: Number(data.price) };
-    onSave(formattedData);
-    onOpenChange(false);
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    setValue("image", localPreviewUrl);
+  };
+
+  const onSubmit = async (data: Partial<FrontendProduct>) => {
+    setIsSubmitting(true);
+
+    try {
+      let finalImageUrl = data.image;
+
+      if (selectedFile) {
+        const uploadRes = await startUpload([selectedFile]);
+
+        if (uploadRes && uploadRes[0]) {
+          finalImageUrl = uploadRes[0].url;
+        } else {
+          throw new Error("Falha ao receber URL da imagem.");
+        }
+      }
+      const formattedData = {
+        ...data,
+        image: finalImageUrl,
+        price: Number(data.price),
+      };
+
+      onSave(formattedData);
+      onOpenChange(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar produto. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden bg-white">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="text-xl font-bold">
             {product ? "Editar Produto" : "Novo Produto"}
           </DialogTitle>
           <DialogDescription>
-            Preencha os dados do novo produto.
+            Preencha os dados e clique em salvar para enviar.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-6">
-          {/* Área de Upload de Imagem */}
+          {/* Área de Imagem */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
               Imagem do Produto
             </Label>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:bg-muted/10 transition-colors cursor-pointer bg-gray-50/50 relative group">
-              {imagePreview ? (
-                <div className="relative w-32 h-32 rounded-md overflow-hidden shadow-sm">
+
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:bg-muted/10 transition-colors cursor-pointer bg-gray-50 relative group">
+              {/* Loader durante o envio final */}
+              {isSubmitting && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg">
+                  <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                  <span className="text-xs font-bold mt-2 text-orange-600">
+                    Enviando imagem e salvando...
+                  </span>
+                </div>
+              )}
+
+              {imageUrl ? (
+                <div className="relative w-full h-48 rounded-md overflow-hidden shadow-sm">
                   <Image
-                    src={imagePreview}
+                    src={imageUrl}
                     alt="Preview"
                     fill
                     className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 500px"
                   />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <Button
                       type="button"
                       variant="ghost"
@@ -120,7 +172,7 @@ export function ProductDialog({
                       onClick={(e) => {
                         e.stopPropagation();
                         setValue("image", "");
-                        setImagePreview(null);
+                        setSelectedFile(null);
                       }}
                     >
                       <X className="h-5 w-5" />
@@ -134,38 +186,28 @@ export function ProductDialog({
                   </div>
                   <div className="text-center">
                     <span className="text-sm font-medium text-primary">
-                      Clique para upload
+                      Clique para escolher
                     </span>
                     <span className="text-sm text-muted-foreground">
                       {" "}
-                      ou arraste e solte
+                      (JPG, PNG - Max 4MB)
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    SVG, PNG, JPG ou GIF (max. 800x400px)
-                  </p>
                 </>
               )}
 
-              {/* Input "escondido" */}
-              <Input
-                {...register("image")}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    setImagePreview(url);
-                    setValue("image", url);
-                  }
-                }}
+              {/* Input de arquivo */}
+              <input
                 type="file"
                 accept="image/*"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                disabled={isSubmitting}
+                onChange={handleImageSelect}
               />
             </div>
           </div>
 
-          {/* Nome */}
+          {/* Resto do Formulário (Nome, Descrição, etc) */}
           <div className="space-y-2">
             <Label htmlFor="name">Nome do Produto *</Label>
             <Input
@@ -176,18 +218,16 @@ export function ProductDialog({
             />
           </div>
 
-          {/* Descrição */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descrição *</Label>
+            <Label htmlFor="description">Descrição</Label>
             <Textarea
               id="description"
               {...register("description")}
-              placeholder="Descreva os ingredientes e características do produto..."
+              placeholder="Descreva os ingredientes..."
               className="min-h-[100px] resize-none"
             />
           </div>
 
-          {/* Preço e Categoria */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price">Preço (R$) *</Label>
@@ -204,16 +244,16 @@ export function ProductDialog({
               <Label htmlFor="category">Categoria *</Label>
               <Select
                 onValueChange={(val) => setValue("category", val)}
-                defaultValue={product?.category || "lanches"}
+                defaultValue={product?.category || "Lanches"}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="lanches">🍔 Lanches</SelectItem>
-                  <SelectItem value="pizzas">🍕 Pizzas</SelectItem>
-                  <SelectItem value="bebidas">🥤 Bebidas</SelectItem>
-                  <SelectItem value="sobremesas">🍰 Sobremesas</SelectItem>
+                  <SelectItem value="Lanches">🍔 Lanches</SelectItem>
+                  <SelectItem value="Pizzas">🍕 Pizzas</SelectItem>
+                  <SelectItem value="Bebidas">🥤 Bebidas</SelectItem>
+                  <SelectItem value="Sobremesas">🍰 Sobremesas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -225,14 +265,20 @@ export function ProductDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="h-11 px-6"
+              disabled={isSubmitting}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="h-11 px-6 bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-sm"
             >
-              {product ? "Salvar Alterações" : "Adicionar"}
+              {isSubmitting
+                ? "Salvando..."
+                : product
+                ? "Salvar Alterações"
+                : "Adicionar"}
             </Button>
           </DialogFooter>
         </form>
