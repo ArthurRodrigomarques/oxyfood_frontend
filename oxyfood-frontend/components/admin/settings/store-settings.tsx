@@ -57,7 +57,16 @@ export function StoreSettings() {
   const queryClient = useQueryClient();
 
   const { register, handleSubmit, reset, setValue, control } =
-    useForm<StoreFormData>();
+    useForm<StoreFormData>({
+      defaultValues: {
+        name: "",
+        addressText: "",
+        phoneNumber: "",
+        description: "",
+        logoUrl: "",
+        bannerUrl: "",
+      },
+    });
 
   const logoUrl = useWatch({ control, name: "logoUrl" });
   const bannerUrl = useWatch({ control, name: "bannerUrl" });

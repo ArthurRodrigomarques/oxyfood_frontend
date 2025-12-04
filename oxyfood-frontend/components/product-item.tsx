@@ -1,6 +1,6 @@
 "use client";
 
-import { Product } from "@/data/mock-restaurant";
+import { Product } from "@/types/order";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Plus, Image as ImageIcon } from "lucide-react";

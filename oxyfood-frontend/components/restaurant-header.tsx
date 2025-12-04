@@ -1,6 +1,6 @@
 "use client";
 
-import { RestaurantData } from "@/data/mock-restaurant";
+import { RestaurantData } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { CheckoutSheet } from "@/components/checkout-sheet";

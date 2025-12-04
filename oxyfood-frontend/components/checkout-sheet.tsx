@@ -20,7 +20,7 @@ import {
   ArrowLeft,
   LucideIcon,
 } from "lucide-react";
-import { RestaurantData } from "@/data/mock-restaurant";
+import { RestaurantData } from "@/types/order";
 
 import {
   Sheet,
@@ -168,7 +168,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
       </SheetTrigger>
 
       <SheetContent className="w-full sm:max-w-md flex flex-col h-full p-0 bg-gray-50 border-l shadow-2xl">
-        {/* HEADER */}
         <SheetHeader className="px-5 py-4 bg-white border-b shrink-0 flex flex-row items-center gap-4 space-y-0">
           {step === "details" ? (
             <Button
@@ -271,7 +270,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                     onSubmit={handleSubmit(onSubmit)}
                     className="space-y-6"
                   >
-                    {/* Seção Dados Pessoais */}
                     <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
                       <div className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                         <User className="h-4 w-4 text-orange-500" />
@@ -311,7 +309,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                       </div>
                     </div>
 
-                    {/* Seção Endereço */}
                     <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
                       <div className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                         <MapPin className="h-4 w-4 text-orange-500" />
@@ -334,7 +331,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                       </div>
                     </div>
 
-                    {/* Seção Pagamento */}
                     <div className="bg-white p-9 rounded-xl border border-gray-100 space-y-4 shadow-sm">
                       <div className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                         <Banknote className="h-4 w-4 text-orange-500" />

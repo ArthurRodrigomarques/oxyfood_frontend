@@ -6,12 +6,13 @@ import { api } from "@/lib/api";
 import { RestaurantHeader } from "@/components/restaurant-header";
 import { CategoryList } from "@/components/category-list";
 import { ProductItem } from "@/components/product-item";
-import { Loader2, Search, X, Star, Megaphone, TrendingUp } from "lucide-react";
-import { RestaurantData } from "@/data/mock-restaurant";
+import { CheckoutSheet } from "@/components/checkout-sheet";
+import { Loader2, Search, X, Megaphone, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
+import { RestaurantData } from "@/types/order";
 
 interface RestaurantResponse {
   restaurant: RestaurantData;
@@ -25,6 +26,7 @@ export default function RestaurantPage({
   const { slug } = use(params);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Busca os dados REAIS do backend
   const { data, isLoading, isError } = useQuery({
     queryKey: ["restaurant-public", slug],
     queryFn: async () => {
@@ -54,7 +56,11 @@ export default function RestaurantPage({
       .filter((category) => category.products.length > 0);
   }, [data, searchQuery]);
 
-  const highlights = data?.restaurant.categories[0]?.products.slice(0, 2) || [];
+  const highlights = useMemo(() => {
+    if (!data?.restaurant) return [];
+    const allProducts = data.restaurant.categories.flatMap((c) => c.products);
+    return allProducts.slice(0, 2);
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -75,16 +81,21 @@ export default function RestaurantPage({
   const { restaurant } = data;
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] pb-20">
-      {/* 1. BARRA DE AVISO LARANJA */}
+    <div className="min-h-screen bg-[#F7F7F7] pb-20 relative">
+      {/* Barra de Aviso Dinâmica */}
       <div className="bg-orange-500 text-white text-center py-2 text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
         <Megaphone className="h-4 w-4" />
-        <span>Entrega Grátis acima de R$ 30!</span>
+        <span>
+          {restaurant.freeDeliveryAbove
+            ? `Entrega Grátis acima de ${formatCurrency(
+                Number(restaurant.freeDeliveryAbove)
+              )}!`
+            : "Faça seu pedido agora!"}
+        </span>
       </div>
 
       <RestaurantHeader restaurant={restaurant} />
 
-      {/* 2. BUSCA E CATEGORIAS */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="container max-w-6xl mx-auto px-4 py-4 space-y-4">
           <div className="relative">
@@ -112,7 +123,7 @@ export default function RestaurantPage({
       </div>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl space-y-10">
-        {/* 3. SEÇÃO DE DESTAQUES */}
+        {/* Destaques Dinâmicos */}
         {!searchQuery && highlights.length > 0 && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center gap-2 mb-4">
@@ -128,12 +139,12 @@ export default function RestaurantPage({
                 >
                   <div className="absolute inset-0">
                     <Image
-                      src={product.imageUrl || "/hamburguer.jpg"}
+                      src={product.imageUrl || "/hamburguer.jpg"} // Fallback se não tiver imagem no banco
                       alt={product.name}
                       fill
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   </div>
 
                   <div className="absolute bottom-0 left-0 p-4 sm:p-6 text-white w-full">
@@ -141,7 +152,7 @@ export default function RestaurantPage({
                       {product.name}
                     </h3>
                     <p className="text-orange-400 font-extrabold text-lg">
-                      {formatCurrency(product.basePrice)}
+                      {formatCurrency(Number(product.basePrice))}
                     </p>
                   </div>
                 </div>
@@ -150,7 +161,6 @@ export default function RestaurantPage({
           </section>
         )}
 
-        {/* 4. LISTA DE PRODUTOS (Mais Pedidos) */}
         {filteredCategories.length > 0 ? (
           filteredCategories.map((category) => (
             <section
@@ -159,15 +169,12 @@ export default function RestaurantPage({
               className="scroll-mt-48"
             >
               <div className="flex items-center gap-2 mb-4">
-                {category.name === "Lanches" ? (
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                ) : null}
                 <h2 className="text-xl font-bold text-gray-800">
                   {category.name}
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {category.products.map((product) => (
                   <ProductItem key={product.id} product={product} />
                 ))}
@@ -180,6 +187,10 @@ export default function RestaurantPage({
           </div>
         )}
       </main>
+
+      <div className="fixed bottom-6 right-4 z-50 md:hidden">
+        <CheckoutSheet restaurant={restaurant} />
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { RestaurantData } from "@/data/mock-restaurant";
+import { RestaurantData } from "@/types/order";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";

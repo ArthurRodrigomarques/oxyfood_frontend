@@ -36,13 +36,13 @@ export interface RestaurantData {
   name: string;
   slug: string;
   logoUrl: string | null;
-  // Novas propriedades adicionadas para a UI moderna
   bannerUrl: string | null;
   addressText: string;
-  address: string; // Adicionado para compatibilidade com o componente
+  address: string;
   phoneNumber: string;
   isOpen: boolean;
   deliveryFee: string;
+  freeDeliveryAbove: string | null;
   description: string | null;
   rating: number | null;
   categories: Category[];
@@ -54,15 +54,16 @@ export const mockRestaurant: { restaurant: RestaurantData } = {
     name: "OxyFood",
     slug: "hamburgueria-do-ze",
     logoUrl: "https://imgur.com/logo.png",
-    bannerUrl: "https://placehold.co/1200x400/orange/white?text=OxyFood+Banner", // Banner de exemplo
+    bannerUrl: "https://placehold.co/1200x400/orange/white?text=OxyFood+Banner",
     addressText: "Hamburgueria Artesanal",
-    address: "Rua das Flores, 123 - Centro, São Paulo - SP", // Endereço completo para o cabeçalho
+    address: "Rua das Flores, 123 - Centro, São Paulo - SP",
     phoneNumber: "13999998888",
     isOpen: true,
     deliveryFee: "5",
+    freeDeliveryAbove: "100",
     description:
-      "A melhor hamburgueria da cidade, com ingredientes frescos e receitas artesanais únicas.", // Descrição para o cabeçalho
-    rating: 4.8, // Nota para o cabeçalho
+      "A melhor hamburgueria da cidade, com ingredientes frescos e receitas artesanais únicas.",
+    rating: 4.8,
     categories: [
       {
         id: "c27d9746-e614-402c-9c90-b47a799d3866",

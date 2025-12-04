@@ -1,6 +1,6 @@
 "use client";
 
-import { Product, Option, OptionGroup } from "@/data/mock-restaurant";
+import { Product, Option, OptionGroup } from "@/types/order";
 import {
   Dialog,
   DialogContent,
@@ -114,7 +114,6 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
 
   return (
     <div className="flex flex-col h-full max-h-[90vh]">
-      {/* Header com Imagem e Titulo - Fixo no topo */}
       <div className="shrink-0">
         <div className="relative h-48 sm:h-56 w-full">
           {product.imageUrl ? (
@@ -148,7 +147,6 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
         </div>
       </div>
 
-      {/* Área de Opções - Scrollável */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="px-6 pb-6 space-y-6">
           {product.optionGroups.map((group) => (

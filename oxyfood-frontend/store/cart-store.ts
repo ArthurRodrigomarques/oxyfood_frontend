@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { Product, Option } from "@/data/mock-restaurant";
+import { Product, Option } from "@/types/order";
 import { toast } from "sonner";
 
 export interface CartItem {
