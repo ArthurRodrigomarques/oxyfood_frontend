@@ -76,7 +76,7 @@ export function ProductItem({
         </div>
       </div>
 
-      {/* Ações (Direita) */}
+      {/* Ações*/}
       <div className="flex items-center gap-4 self-end sm:self-center ml-auto mt-2 sm:mt-0">
         {/* Botão de Complementos */}
         <Button
@@ -89,7 +89,7 @@ export function ProductItem({
           Opções
         </Button>
 
-        {/* Botão Mobile (apenas ícone) */}
+        {/* Botão Mobile  */}
         <Button
           variant="outline"
           size="icon"

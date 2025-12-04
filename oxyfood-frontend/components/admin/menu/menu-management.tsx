@@ -17,7 +17,6 @@ import { DeleteDialog } from "./delete-dialog";
 import { CategoryDialog } from "./category-dialog";
 import { OptionsDialog } from "./options-dialog";
 
-// --- NOVAS INTERFACES (TIPAGEM CORRETA) ---
 export interface MenuOption {
   id: string;
   name: string;
@@ -42,7 +41,7 @@ interface ApiProduct {
   basePrice: string;
   imageUrl: string | null;
   available: boolean;
-  optionGroups?: MenuOptionGroup[]; // Tipado corretamente
+  optionGroups?: MenuOptionGroup[];
 }
 
 interface ApiCategory {
@@ -50,8 +49,6 @@ interface ApiCategory {
   name: string;
   products: ApiProduct[];
 }
-
-// Exportando para usar no OptionsDialog
 export interface AdminMenuResponse {
   categories: ApiCategory[];
 }
@@ -65,7 +62,7 @@ export interface FrontendProduct {
   categoryId: string;
   image: string;
   available: boolean;
-  optionGroups: MenuOptionGroup[]; // Tipado corretamente (sem 'any')
+  optionGroups: MenuOptionGroup[];
 }
 
 export function MenuManagement() {
@@ -105,7 +102,6 @@ export function MenuManagement() {
     enabled: !!activeRestaurantId,
   });
 
-  // 2. PROCESSAR DADOS (Transformar API -> Frontend)
   const products: FrontendProduct[] = useMemo(() => {
     if (!menuData?.categories) return [];
     const flatList: FrontendProduct[] = [];
@@ -121,15 +117,12 @@ export function MenuManagement() {
           categoryId: category.id,
           image: product.imageUrl || "",
           available: product.available,
-          // Garante que sempre seja um array, mesmo que vazio
           optionGroups: product.optionGroups || [],
         });
       });
     });
     return flatList;
   }, [menuData]);
-
-  // --- MUTAÇÕES (Ações) ---
 
   // Salvar Produto (Criar/Editar)
   const { mutate: saveProduct } = useMutation({

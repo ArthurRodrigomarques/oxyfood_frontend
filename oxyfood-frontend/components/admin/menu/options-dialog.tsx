@@ -23,7 +23,6 @@ import { formatCurrency } from "@/lib/utils";
 import {
   FrontendProduct,
   MenuOptionGroup,
-  MenuOption,
   AdminMenuResponse,
 } from "./menu-management";
 import { useAuthStore } from "@/store/auth-store";
@@ -80,8 +79,6 @@ export function OptionsDialog({
     defaultValues: { priceDelta: 0 },
   });
 
-  // --- CORREÇÃO AQUI ---
-  // Adicionamos a queryFn para satisfazer o React Query e permitir re-fetch
   const { data: adminMenu } = useQuery<AdminMenuResponse>({
     queryKey: ["admin-menu", activeRestaurantId],
     queryFn: async () => {
@@ -93,7 +90,6 @@ export function OptionsDialog({
     enabled: !!activeRestaurantId && open,
   });
 
-  // Encontra o produto atualizado dentro dos dados "vivos"
   const liveProduct = adminMenu?.categories
     .flatMap((c) => c.products)
     .find((p) => p.id === product?.id);
