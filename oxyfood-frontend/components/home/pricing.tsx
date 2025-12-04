@@ -7,6 +7,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Check } from "lucide-react";
+import Link from "next/link";
 
 function PricingCard({
   title,
@@ -27,41 +28,44 @@ function PricingCard({
 }) {
   return (
     <Card
-      className={`relative flex flex-col bg-white transition-all hover:shadow-lg ${
+      className={`relative flex flex-col bg-white transition-all hover:shadow-xl duration-300 ${
         isPopular
-          ? "border-primary border-2 shadow-md scale-105 z-10"
-          : "border"
+          ? "border-orange-500 border-2 shadow-md scale-105 z-10"
+          : "border-gray-200"
       }`}
     >
       {isPopular && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium shadow-sm">
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-sm uppercase tracking-wide">
           Mais Popular
         </div>
       )}
       <CardHeader>
-        <CardTitle className="text-2xl">{title}</CardTitle>
+        <CardTitle className="text-2xl font-bold">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
-        <div className="mt-4">
-          <span className="text-4xl font-bold text-foreground">R$ {price}</span>
-          <span className="text-muted-foreground">/mês</span>
+        <div className="mt-4 flex items-baseline gap-1">
+          <span className="text-4xl font-extrabold text-gray-900">
+            R$ {price}
+          </span>
+          <span className="text-muted-foreground font-medium">/mês</span>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
-        <ul className="space-y-3 flex-1 mb-6">
+        <ul className="space-y-4 flex-1 mb-8">
           {features.map((feature, i) => (
             <li
               key={i}
-              className="flex items-center gap-2 text-sm text-muted-foreground"
+              className="flex items-center gap-3 text-sm text-gray-600"
             >
-              <div className="bg-primary/10 p-1 rounded-full">
-                <Check className="w-3 h-3 text-primary shrink-0" />
+              <div className="bg-green-100 p-1 rounded-full shrink-0">
+                <Check className="w-3 h-3 text-green-600" />
               </div>
               <span>{feature}</span>
             </li>
           ))}
         </ul>
-        <Button className="w-full" variant={variant}>
-          {buttonText}
+
+        <Button className="w-full h-12 font-bold" variant={variant} asChild>
+          <Link href="/register">{buttonText}</Link>
         </Button>
       </CardContent>
     </Card>

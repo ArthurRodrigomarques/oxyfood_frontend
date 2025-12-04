@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { UtensilsCrossed } from "lucide-react";
+import Link from "next/link";
 
 export function Header() {
   return (
@@ -35,11 +36,11 @@ export function Header() {
 
         <div className="flex gap-4">
           <Button variant="ghost" asChild>
-            <a href="/admin/login">Login</a>
+            <Link href="/login">Login</Link>
           </Button>
 
           <Button asChild>
-            <a href="/admin/login">Criar Conta</a>
+            <Link href="/register">Criar Conta</Link>
           </Button>
         </div>
       </div>
