@@ -1,30 +1,52 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
-  Loader2,
   CheckCircle2,
+  Clock,
   ChefHat,
   Bike,
   MapPin,
-  XCircle,
-  Clock,
   ShoppingBag,
+  ArrowLeft,
+  Phone,
+  Copy,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { formatCurrency, cn } from "@/lib/utils";
+import { toast } from "sonner";
 
+// Tipos
 type OrderStatus = "PENDING" | "PREPARING" | "OUT" | "COMPLETED" | "REJECTED";
 
-interface OrderStatusResponse {
+interface OrderItem {
+  id: string;
+  quantity: number;
+  product: { name: string; imageUrl?: string };
+  optionsDescription?: string;
+  unitPrice: string;
+}
+
+interface OrderDetails {
+  id: string;
   status: OrderStatus;
   customerName: string;
-  id: string;
+  customerAddress: string;
+  totalPrice: string;
+  deliveryFee: string;
+  paymentMethod: string;
+  createdAt: string;
+  restaurant: {
+    name: string;
+    phoneNumber: string;
+  };
+  orderItems: OrderItem[];
 }
 
 export default function OrderStatusPage({
@@ -33,213 +55,327 @@ export default function OrderStatusPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
-  const { data, isLoading, error } = useQuery<OrderStatusResponse | null>({
-    queryKey: ["order-status", id],
+  const {
+    data: order,
+    isLoading,
+    error,
+  } = useQuery<OrderDetails>({
+    queryKey: ["order-details", id],
     queryFn: async () => {
-      const response = await api.get<OrderStatusResponse>(
-        `/orders/${id}/status`
-      );
+      const response = await api.get(`/orders/${id}/status`);
+
       return response.data;
     },
     refetchInterval: (query) => {
       const status = query.state.data?.status;
+      // Para de atualizar se acabou ou foi cancelado
       return status === "COMPLETED" || status === "REJECTED" ? false : 5000;
     },
   });
 
+  // Contador de tempo decorrido
+  useEffect(() => {
+    if (!order?.createdAt) return;
+    const start = new Date(order.createdAt).getTime();
+
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      setElapsedTime(Math.floor((now - start) / 60000)); // Minutos
+    }, 1000 * 60);
+
+    return () => clearInterval(timer);
+  }, [order?.createdAt]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
-        <Loader2 className="h-12 w-12 animate-spin text-orange-500" />
-        <p className="text-gray-500 font-medium">Buscando seu pedido...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="relative">
+          <div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div>
+          <div className="relative bg-orange-500 p-4 rounded-full shadow-xl">
+            <ChefHat className="h-8 w-8 text-white animate-bounce" />
+          </div>
+        </div>
+        <p className="mt-6 text-gray-500 font-medium animate-pulse">
+          Localizando seu pedido...
+        </p>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (error || !order) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-6 p-4 text-center">
-        <div className="bg-red-100 p-6 rounded-full">
-          <XCircle className="h-12 w-12 text-red-500" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Pedido não encontrado
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Verifique se o link está correto.
-          </p>
-        </div>
-        <Button
-          asChild
-          className="bg-orange-500 hover:bg-orange-600 rounded-full px-8"
-        >
-          <Link href="/">Voltar ao Início</Link>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+        <h1 className="text-2xl font-bold text-gray-800">
+          Pedido não encontrado
+        </h1>
+        <p className="text-muted-foreground mt-2 mb-6">
+          Não conseguimos encontrar os detalhes deste pedido.
+        </p>
+        <Button asChild variant="outline">
+          <Link href="/">Voltar ao Cardápio</Link>
         </Button>
       </div>
     );
   }
 
+  // Configuração da Timeline
   const steps = [
     {
       status: "PENDING",
-      label: "Aguardando Confirmação",
-      description: "O restaurante está analisando seu pedido",
+      label: "Pedido Enviado",
+      desc: "Aguardando confirmação do restaurante",
       icon: Clock,
-      color: "bg-blue-500",
+      color: "text-blue-500",
+      bg: "bg-blue-100",
     },
     {
       status: "PREPARING",
       label: "Em Preparo",
-      description: "Seu pedido está sendo feito com carinho",
+      desc: "O restaurante está preparando sua comida",
       icon: ChefHat,
-      color: "bg-orange-500",
+      color: "text-orange-500",
+      bg: "bg-orange-100",
     },
     {
       status: "OUT",
       label: "Saiu para Entrega",
-      description: "O entregador está a caminho",
+      desc: "Seu pedido está a caminho",
       icon: Bike,
-      color: "bg-purple-500",
+      color: "text-purple-500",
+      bg: "bg-purple-100",
     },
     {
       status: "COMPLETED",
       label: "Entregue",
-      description: "Bom apetite!",
+      desc: "Pedido concluído. Bom apetite!",
       icon: CheckCircle2,
-      color: "bg-green-500",
+      color: "text-green-500",
+      bg: "bg-green-100",
     },
   ];
 
-  const currentStepIndex = steps.findIndex((s) => s.status === data.status);
-  const isRejected = data.status === "REJECTED";
+  const currentStepIndex = steps.findIndex((s) => s.status === order.status);
+  const isRejected = order.status === "REJECTED";
+
+  const copyPix = () => {
+    // Exemplo de funcionalidade de copiar código (se fosse Pix)
+    navigator.clipboard.writeText("CODIGO_PIX_EXEMPLO");
+    toast.success("Código copiado!");
+  };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-xl border-none overflow-hidden rounded-2xl">
-        <div className="bg-orange-500 p-6 text-white text-center">
-          <div className="bg-white/20 w-fit mx-auto px-3 py-1 rounded-full mb-3 backdrop-blur-sm">
-            <span className="text-xs font-bold tracking-widest uppercase">
-              Pedido #{id.slice(0, 6).toUpperCase()}
-            </span>
+    <div className="min-h-screen bg-[#F7F7F7] pb-10">
+      {/* HEADER SIMPLES */}
+      <header className="bg-white p-4 sticky top-0 z-10 shadow-sm border-b">
+        <div className="container max-w-2xl mx-auto flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="-ml-2">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="font-bold text-gray-800">Acompanhar Pedido</h1>
+            <p className="text-xs text-muted-foreground">
+              #{order.id.slice(0, 6).toUpperCase()} • {order.restaurant?.name}
+            </p>
           </div>
-          <h1 className="text-2xl font-bold">
-            {isRejected ? "Pedido Cancelado" : "Acompanhe seu Pedido"}
-          </h1>
-          <p className="text-orange-100 text-sm mt-1">
-            Olá, {data.customerName}!
-          </p>
+          {order.status !== "COMPLETED" && !isRejected && (
+            <Badge
+              variant="secondary"
+              className="bg-green-100 text-green-700 hover:bg-green-100 border-none"
+            >
+              <Clock className="h-3 w-3 mr-1" />
+              {elapsedTime} min
+            </Badge>
+          )}
         </div>
+      </header>
 
-        <CardContent className="p-6 sm:p-8 space-y-8 bg-white">
+      <main className="container max-w-2xl mx-auto p-4 space-y-6">
+        {/* CARD DE STATUS */}
+        <Card className="border-none shadow-sm overflow-hidden">
           {isRejected ? (
-            <div className="text-center py-8">
-              <div className="bg-red-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <XCircle className="h-10 w-10 text-red-500" />
+            <div className="p-8 text-center bg-red-50">
+              <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">😢</span>
               </div>
-              <h3 className="font-bold text-gray-800 text-xl mb-2">
-                Ops! Ocorreu um problema.
-              </h3>
-              <p className="text-gray-500 max-w-xs mx-auto">
-                O restaurante não pôde aceitar seu pedido neste momento. Tente
-                novamente ou escolha outro item.
+              <h2 className="text-xl font-bold text-red-700">
+                Pedido Cancelado
+              </h2>
+              <p className="text-red-600/80 mt-2 text-sm">
+                O restaurante não pôde aceitar seu pedido neste momento.
               </p>
+              <Button
+                className="mt-6 bg-red-600 hover:bg-red-700 text-white"
+                asChild
+              >
+                <Link href="/">Tentar Novamente</Link>
+              </Button>
             </div>
           ) : (
-            <div className="relative pl-6 sm:pl-8 space-y-10">
-              {/* Linha do tempo (Background) */}
-              <div className="absolute left-[35px] sm:left-[43px] top-4 bottom-10 w-0.5 bg-gray-100 -z-10" />
+            <div className="p-6 bg-white">
+              <div className="relative pl-4 space-y-8 before:absolute before:left-[27px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100">
+                {steps.map((step, index) => {
+                  const isCompleted = index < currentStepIndex;
+                  const isCurrent = index === currentStepIndex;
+                  const Icon = step.icon;
 
-              {/* Barra de Progresso (Colorida) */}
-              <div
-                className="absolute left-[35px] sm:left-[43px] top-4 w-0.5 bg-green-500 -z-10 transition-all duration-1000"
-                style={{
-                  height: `${(currentStepIndex / (steps.length - 1)) * 85}%`,
-                }} // Calcula a altura aproximada
-              />
-
-              {steps.map((step, index) => {
-                const isActive = index === currentStepIndex;
-                const isCompleted = index < currentStepIndex;
-                const Icon = step.icon;
-
-                return (
-                  <div
-                    key={step.status}
-                    className="flex gap-4 sm:gap-6 relative"
-                  >
-                    <div
-                      className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center shrink-0 border-4 transition-all duration-500 z-10 ${
-                        isActive || isCompleted
-                          ? `${step.color} border-white shadow-lg text-white scale-110`
-                          : "bg-white border-gray-100 text-gray-300"
-                      }`}
-                    >
-                      <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
-                    </div>
-
-                    <div
-                      className={`pt-1 transition-all duration-500 ${
-                        isActive
-                          ? "opacity-100 translate-x-0"
-                          : isCompleted
-                          ? "opacity-50"
-                          : "opacity-30"
-                      }`}
-                    >
-                      <h4
-                        className={`font-bold text-lg ${
-                          isActive ? "text-gray-900" : "text-gray-500"
-                        }`}
+                  return (
+                    <div key={step.status} className="relative flex gap-4">
+                      <div
+                        className={cn(
+                          "relative z-10 w-14 h-14 rounded-full flex items-center justify-center border-4 border-white shadow-sm shrink-0 transition-all duration-500",
+                          isCompleted || isCurrent
+                            ? step.bg
+                            : "bg-gray-50 grayscale"
+                        )}
                       >
-                        {step.label}
-                      </h4>
-                      <p className="text-sm text-gray-500 leading-tight mt-1">
-                        {step.description}
-                      </p>
-                      {isActive && (
-                        <Badge
-                          variant="outline"
-                          className="mt-2 text-orange-600 border-orange-200 bg-orange-50 animate-pulse"
-                        >
-                          Em andamento
-                        </Badge>
-                      )}
+                        <Icon
+                          className={cn(
+                            "h-6 w-6 transition-all duration-500",
+                            isCompleted || isCurrent
+                              ? step.color
+                              : "text-gray-300"
+                          )}
+                        />
+                      </div>
+                      <div
+                        className={cn(
+                          "pt-1 transition-opacity duration-500",
+                          isCompleted || isCurrent
+                            ? "opacity-100"
+                            : "opacity-40"
+                        )}
+                      >
+                        <h3 className="font-bold text-gray-900">
+                          {step.label}
+                        </h3>
+                        <p className="text-sm text-gray-500 leading-snug">
+                          {step.desc}
+                        </p>
+                        {isCurrent && (
+                          <span className="inline-block mt-2 px-2 py-0.5 bg-gray-900 text-white text-[10px] font-bold rounded uppercase tracking-wider animate-pulse">
+                            Agora
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
+        </Card>
 
-          <Separator />
+        {/* DETALHES DA ENTREGA */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="p-4 border-none shadow-sm flex items-start gap-3">
+            <div className="bg-gray-100 p-2 rounded-full">
+              <MapPin className="h-5 w-5 text-gray-600" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-gray-900">
+                Endereço de Entrega
+              </h4>
+              <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">
+                {order.customerAddress}
+              </p>
+            </div>
+          </Card>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="bg-white p-2 rounded-full shadow-sm">
-                <MapPin className="h-5 w-5 text-gray-600" />
-              </div>
-              <div className="text-sm text-gray-600">
-                <span className="block font-bold text-gray-800">
-                  Endereço de Entrega
+          <Card className="p-4 border-none shadow-sm flex items-start gap-3">
+            <div className="bg-gray-100 p-2 rounded-full">
+              <Phone className="h-5 w-5 text-gray-600" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-gray-900">
+                Contato da Loja
+              </h4>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {order.restaurant?.phoneNumber || "Não informado"}
+              </p>
+            </div>
+          </Card>
+        </div>
+
+        {/* RESUMO DO PEDIDO */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <div className="bg-gray-50/50 p-4 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4" /> Resumo do Pedido
+            </h3>
+          </div>
+          <div className="p-4 space-y-4">
+            {order.orderItems?.map((item, i) => (
+              <div key={i} className="flex justify-between items-start text-sm">
+                <div>
+                  <span className="font-bold text-gray-900 mr-2">
+                    {item.quantity}x
+                  </span>
+                  <span className="text-gray-700">
+                    {item.product?.name || "Item"}
+                  </span>
+                  {item.optionsDescription && (
+                    <p className="text-xs text-gray-500 mt-0.5 pl-6">
+                      {item.optionsDescription}
+                    </p>
+                  )}
+                </div>
+                <span className="font-medium text-gray-900">
+                  {formatCurrency(Number(item.unitPrice) * item.quantity)}
                 </span>
-                Confirmado no checkout.
+              </div>
+            ))}
+
+            <Separator className="my-4" />
+
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between text-gray-500">
+                <span>Subtotal</span>
+                <span>
+                  {formatCurrency(
+                    Number(order.totalPrice) - Number(order.deliveryFee)
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>Taxa de entrega</span>
+                <span>{formatCurrency(order.deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg text-gray-900 pt-2">
+                <span>Total</span>
+                <span className="text-green-600">
+                  {formatCurrency(order.totalPrice)}
+                </span>
               </div>
             </div>
 
-            <Button
-              className="w-full h-12 text-base font-bold bg-gray-900 hover:bg-black rounded-xl"
-              asChild
-            >
-              <Link href="/">
-                <ShoppingBag className="mr-2 h-5 w-5" />
-                Fazer Novo Pedido
-              </Link>
-            </Button>
+            <div className="bg-gray-50 p-3 rounded-lg flex justify-between items-center text-xs text-gray-500 mt-4">
+              <span>Pagamento via {order.paymentMethod}</span>
+              {order.paymentMethod === "Pix" && (
+                <button
+                  onClick={copyPix}
+                  className="flex items-center gap-1 text-blue-600 font-bold hover:underline"
+                >
+                  <Copy className="h-3 w-3" /> Copiar Código
+                </button>
+              )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+
+        {/* AJUDA / FOOTER */}
+        <div className="text-center pt-4">
+          <Button
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Precisa de ajuda? Fale com o suporte
+          </Button>
+        </div>
+      </main>
     </div>
   );
 }

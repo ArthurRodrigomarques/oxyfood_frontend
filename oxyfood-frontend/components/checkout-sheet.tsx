@@ -61,7 +61,6 @@ interface PaymentOptionProps {
   selected: string;
 }
 
-// Componente extraído para evitar re-renderizações desnecessárias
 function PaymentOption({
   value,
   icon: Icon,
@@ -208,9 +207,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
           </div>
         ) : (
           <>
-            {/* CONTEÚDO COM SCROLL */}
             <ScrollArea className="flex-1 bg-gray-50 h-full">
-              {/* CORREÇÃO: pb-64 garante que o conteúdo não fique atrás do rodapé */}
               <div className="px-5 py-6 pb-64">
                 {step === "cart" ? (
                   <div className="space-y-4">
@@ -396,7 +393,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
               </div>
             </ScrollArea>
 
-            {/* FOOTER FIXO (Sobreposto ao conteúdo) */}
             <div className="absolute bottom-0 left-0 w-full p-5 bg-white border-t space-y-4 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] z-20">
               <div className="space-y-1.5">
                 <div className="flex justify-between text-sm text-gray-500">
