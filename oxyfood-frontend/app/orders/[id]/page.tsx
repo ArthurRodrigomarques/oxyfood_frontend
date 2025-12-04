@@ -366,7 +366,6 @@ export default function OrderStatusPage({
           </div>
         </Card>
 
-        {/* AJUDA / FOOTER */}
         <div className="text-center pt-4">
           <Button
             variant="ghost"

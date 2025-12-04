@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MobileSidebar } from "@/components/admin/mobile-sidebar";
@@ -11,17 +11,16 @@ import { Order } from "@/types/order";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bell, Search, Loader2 } from "lucide-react";
+import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+// Interfaces da API
 interface ApiOrderItem {
   id: string;
   quantity: number;
   optionsDescription: string | null;
-  product: {
-    name: string;
-  } | null;
+  product: { name: string } | null;
 }
 
 interface ApiOrder {
@@ -45,7 +44,23 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { activeRestaurantId } = useAuthStore();
 
-  const { data: orders = [], isLoading } = useQuery({
+  // Lógica do Áudio e Correção do Loop Infinito
+  const previousPendingCountRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Inicializa o áudio
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("/notification.mp3");
+    }
+  }, []);
+
+  // Busca de Pedidos
+  const {
+    data: orders = [],
+    isLoading,
+    isRefetching,
+  } = useQuery({
     queryKey: ["orders", activeRestaurantId],
     queryFn: async () => {
       if (!activeRestaurantId) return [];
@@ -72,10 +87,26 @@ export default function DashboardPage() {
       })) as Order[];
     },
     enabled: !!activeRestaurantId,
-    refetchInterval: 10000,
+    refetchInterval: 5000,
   });
 
-  // 2. ATUALIZAR STATUS (PATCH)
+  // Lógica do Som
+  useEffect(() => {
+    const currentPendingCount = orders.filter(
+      (o) => o.status === "PENDING"
+    ).length;
+
+    if (currentPendingCount > previousPendingCountRef.current) {
+      toast.info("Novo pedido chegou!", { icon: "🔔" });
+      audioRef.current
+        ?.play()
+        .catch(() => console.log("Interação necessária para o som"));
+    }
+
+    previousPendingCountRef.current = currentPendingCount;
+  }, [orders]);
+
+  // Mutação para atualizar status
   const { mutate: updateStatus } = useMutation({
     mutationFn: async ({
       orderId,
@@ -84,9 +115,7 @@ export default function DashboardPage() {
       orderId: string;
       newStatus: string;
     }) => {
-      await api.patch(`/orders/${orderId}/status`, {
-        status: newStatus,
-      });
+      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
     },
     onSuccess: () => {
       toast.success("Status do pedido atualizado!");
@@ -105,6 +134,7 @@ export default function DashboardPage() {
     );
   }
 
+  // Função para Avançar (Aceitar -> Preparar -> Entregar -> Concluir)
   const handleUpdateStatus = (orderId: string) => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
@@ -119,6 +149,14 @@ export default function DashboardPage() {
     }
   };
 
+  // Função para Rejeitar
+  const handleReject = (orderId: string) => {
+    if (confirm("Tem certeza que deseja rejeitar este pedido?")) {
+      updateStatus({ orderId, newStatus: "REJECTED" });
+    }
+  };
+
+  // Filtragem das colunas
   const pendingOrders = orders.filter((o) => o.status === "PENDING");
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
   const deliveryOrders = orders.filter((o) => o.status === "OUT");
@@ -134,11 +172,14 @@ export default function DashboardPage() {
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
       <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
           <MobileSidebar />
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
               Painel de Pedidos
+              {isRefetching && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
               Gerencie seus pedidos em tempo real
@@ -153,7 +194,7 @@ export default function DashboardPage() {
             </span>
             <Switch checked={isStoreOpen} onCheckedChange={setIsStoreOpen} />
             <Badge className={isStoreOpen ? "bg-green-500" : "bg-red-500"}>
-              {isStoreOpen ? "ON" : "OFF"}
+              {isStoreOpen ? "ABERTO" : "FECHADO"}
             </Badge>
           </div>
 
@@ -165,12 +206,24 @@ export default function DashboardPage() {
             />
           </div>
 
-          <Button size="icon" variant="ghost" className="relative shrink-0">
-            <Bell className="h-5 w-5 text-gray-600" />
-            {pendingOrders.length > 0 && (
-              <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                queryClient.invalidateQueries({ queryKey: ["orders"] })
+              }
+            >
+              <RefreshCw className="h-5 w-5 text-gray-500" />
+            </Button>
+
+            <Button size="icon" variant="ghost" className="relative shrink-0">
+              <Bell className="h-5 w-5 text-gray-600" />
+              {pendingOrders.length > 0 && (
+                <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -178,23 +231,26 @@ export default function DashboardPage() {
         <div className="flex gap-4 sm:gap-6 h-full min-w-[300px] md:min-w-[1000px] flex-col md:flex-row">
           <OrderColumn
             title="NOVOS PEDIDOS"
-            colorClass="bg-red-500"
+            colorClass="bg-blue-500"
             orders={pendingOrders}
             onUpdateStatus={handleUpdateStatus}
+            onReject={handleReject}
           />
 
           <OrderColumn
             title="EM PREPARO"
-            colorClass="bg-amber-500"
+            colorClass="bg-orange-500"
             orders={preparingOrders}
             onUpdateStatus={handleUpdateStatus}
+            onReject={handleReject}
           />
 
           <OrderColumn
             title="SAIU PARA ENTREGA"
-            colorClass="bg-green-600"
+            colorClass="bg-purple-600"
             orders={deliveryOrders}
             onUpdateStatus={handleUpdateStatus}
+            onReject={handleReject}
           />
         </div>
       </div>
