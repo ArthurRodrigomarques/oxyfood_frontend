@@ -92,8 +92,6 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
         toast.error(
           `Selecione pelo menos ${group.minSelection} opção em "${group.name}".`
         );
-        const element = document.getElementById(`group-${group.id}`);
-        element?.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
     }
@@ -115,61 +113,63 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[85vh] sm:max-h-[80vh]">
-      <div className="relative h-56 w-full shrink-0">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
-            Sem imagem
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col h-full max-h-[90vh]">
+      {/* Header com Imagem e Titulo - Fixo no topo */}
+      <div className="shrink-0">
+        <div className="relative h-48 sm:h-56 w-full">
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+              Sem imagem
+            </div>
+          )}
+        </div>
 
-      <div className="px-6 pt-6 pb-2 shrink-0">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
-            {product.name}
-          </DialogTitle>
-          <DialogDescription className="text-base mt-2">
-            {product.description}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xl font-bold text-emerald-600">
-            {formatCurrency(product.basePrice)}
-          </span>
+        <div className="px-6 pt-6 pb-2">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              {product.name}
+            </DialogTitle>
+            <DialogDescription className="text-base mt-2">
+              {product.description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 mb-2">
+            <span className="text-xl font-bold text-emerald-600">
+              {formatCurrency(product.basePrice)}
+            </span>
+          </div>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-6">
-        <div className="space-y-8 py-4">
+      {/* Área de Opções - Scrollável */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="px-6 pb-6 space-y-6">
           {product.optionGroups.map((group) => (
-            <div key={group.id} id={`group-${group.id}`} className="space-y-4">
-              <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border">
+            <div key={group.id} id={`group-${group.id}`} className="space-y-3">
+              <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
                 <div>
-                  <h4 className="font-semibold text-foreground">
-                    {group.name}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <h4 className="font-bold text-gray-800">{group.name}</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">
                     {group.minSelection > 0
                       ? `Escolha de ${group.minSelection} a ${group.maxSelection}`
-                      : `Até ${group.maxSelection} opções (Opcional)`}
+                      : `Até ${group.maxSelection} opções`}
                   </p>
                 </div>
                 {group.minSelection > 0 && (
-                  <span className="text-[10px] uppercase font-bold bg-muted-foreground/10 text-muted-foreground px-2 py-1 rounded">
+                  <span className="text-[10px] uppercase font-bold bg-gray-200 text-gray-600 px-2 py-1 rounded">
                     Obrigatório
                   </span>
                 )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 pl-1">
                 {group.type === "SINGLE" ? (
                   <RadioGroup
                     value={selectedOptions[group.id]?.[0]?.id}
@@ -181,13 +181,13 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
                     {group.options.map((option) => (
                       <div
                         key={option.id}
-                        className="flex items-center justify-between py-3 border-b last:border-0 hover:bg-muted/20 px-2 rounded transition-colors"
+                        className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
                       >
                         <div className="flex items-center space-x-3 flex-1 cursor-pointer">
                           <RadioGroupItem value={option.id} id={option.id} />
                           <Label
                             htmlFor={option.id}
-                            className="flex-1 cursor-pointer font-normal text-base"
+                            className="flex-1 cursor-pointer font-normal text-base text-gray-700"
                           >
                             {option.name}
                           </Label>
@@ -209,7 +209,7 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
                     return (
                       <div
                         key={option.id}
-                        className="flex items-center justify-between py-3 border-b last:border-0 hover:bg-muted/20 px-2 rounded transition-colors"
+                        className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
                       >
                         <div className="flex items-center space-x-3 flex-1">
                           <Checkbox
@@ -221,7 +221,7 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
                           />
                           <Label
                             htmlFor={option.id}
-                            className="flex-1 cursor-pointer font-normal text-base"
+                            className="flex-1 cursor-pointer font-normal text-base text-gray-700"
                           >
                             {option.name}
                           </Label>
@@ -239,40 +239,40 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
             </div>
           ))}
 
-          <div className="space-y-3 pt-4">
-            <Label htmlFor="notes" className="font-semibold text-foreground">
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="notes" className="font-bold text-gray-800">
               Alguma observação?
             </Label>
             <Input
               id="notes"
-              placeholder="Ex: Tirar a cebola, maionese à parte..."
+              placeholder="Ex: Sem cebola, capricha no molho..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="bg-muted/30 border-muted-foreground/20 focus:bg-background transition-colors"
+              className="bg-gray-50 border-gray-200 focus:bg-white"
             />
           </div>
         </div>
       </ScrollArea>
 
-      <div className="p-6 border-t bg-background mt-auto">
+      <div className="p-4 sm:p-6 border-t bg-white shrink-0 z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">
         <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center border rounded-lg h-12 shadow-sm">
+          <div className="flex items-center border rounded-lg h-10 shadow-sm">
             <Button
               variant="ghost"
               size="icon"
-              className="h-full w-12 rounded-none rounded-l-lg hover:bg-muted/50 text-muted-foreground"
+              className="h-full w-10 rounded-none rounded-l-lg hover:bg-gray-100 text-gray-500"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={quantity <= 1}
             >
               <Minus className="h-4 w-4" />
             </Button>
-            <div className="h-full w-12 flex items-center justify-center font-bold text-lg border-x bg-muted/10">
+            <div className="h-full w-10 flex items-center justify-center font-bold text-base border-x bg-gray-50">
               {quantity}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-full w-12 rounded-none rounded-r-lg hover:bg-muted/50 text-primary"
+              className="h-full w-10 rounded-none rounded-r-lg hover:bg-gray-100 text-primary"
               onClick={() => setQuantity((q) => q + 1)}
             >
               <Plus className="h-4 w-4" />
@@ -280,15 +280,15 @@ function ProductModalContent({ product, onClose }: ProductModalProps) {
           </div>
 
           <div className="text-right">
-            <p className="text-xs text-muted-foreground mb-1">Total do item</p>
-            <p className="text-xl font-extrabold text-foreground">
+            <p className="text-xs text-gray-400 font-medium mb-0.5">Total</p>
+            <p className="text-xl font-extrabold text-gray-900 leading-none">
               {formatCurrency(totalPrice)}
             </p>
           </div>
         </div>
 
         <Button
-          className="w-full h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all"
+          className="w-full h-12 text-base font-bold bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-200/50 transition-all rounded-xl"
           onClick={handleAddToCart}
         >
           <ShoppingBag className="mr-2 h-5 w-5" />
@@ -305,7 +305,7 @@ export function ProductModal(props: ProductModalProps) {
   if (isDesktop) {
     return (
       <Dialog open={props.isOpen} onOpenChange={props.onClose}>
-        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden border-none shadow-2xl bg-white h-auto max-h-[90vh]">
           <ProductModalContent {...props} />
         </DialogContent>
       </Dialog>
@@ -314,7 +314,7 @@ export function ProductModal(props: ProductModalProps) {
 
   return (
     <Drawer open={props.isOpen} onClose={props.onClose}>
-      <DrawerContent className="p-0 gap-0 max-h-[96vh] rounded-t-xl">
+      <DrawerContent className="p-0 gap-0 max-h-[95vh] rounded-t-2xl bg-white">
         <DrawerHeader className="sr-only">
           <DrawerTitle>Detalhes do Produto</DrawerTitle>
         </DrawerHeader>

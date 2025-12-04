@@ -15,8 +15,26 @@ import { ProductItem } from "./product-item";
 import { ProductDialog } from "./product-dialog";
 import { DeleteDialog } from "./delete-dialog";
 import { CategoryDialog } from "./category-dialog";
+import { OptionsDialog } from "./options-dialog";
 
-// --- TIPAGEM ---
+// --- NOVAS INTERFACES (TIPAGEM CORRETA) ---
+export interface MenuOption {
+  id: string;
+  name: string;
+  priceDelta: number | string;
+  groupId?: string;
+}
+
+export interface MenuOptionGroup {
+  id: string;
+  name: string;
+  type: "SINGLE" | "MULTIPLE";
+  minSelection: number;
+  maxSelection: number;
+  options: MenuOption[];
+}
+
+// --- TIPAGEM DA API ---
 interface ApiProduct {
   id: string;
   name: string;
@@ -24,6 +42,7 @@ interface ApiProduct {
   basePrice: string;
   imageUrl: string | null;
   available: boolean;
+  optionGroups?: MenuOptionGroup[]; // Tipado corretamente
 }
 
 interface ApiCategory {
@@ -32,7 +51,8 @@ interface ApiCategory {
   products: ApiProduct[];
 }
 
-interface AdminMenuResponse {
+// Exportando para usar no OptionsDialog
+export interface AdminMenuResponse {
   categories: ApiCategory[];
 }
 
@@ -45,6 +65,7 @@ export interface FrontendProduct {
   categoryId: string;
   image: string;
   available: boolean;
+  optionGroups: MenuOptionGroup[]; // Tipado corretamente (sem 'any')
 }
 
 export function MenuManagement() {
@@ -55,6 +76,9 @@ export function MenuManagement() {
   // Estados dos Modais
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [isOptionsDialogOpen, setIsOptionsDialogOpen] = useState(false);
+  const [productToManageOptions, setProductToManageOptions] =
+    useState<FrontendProduct | null>(null);
 
   // Estados de Deleção
   const [productToDelete, setProductToDelete] =
@@ -97,6 +121,8 @@ export function MenuManagement() {
           categoryId: category.id,
           image: product.imageUrl || "",
           available: product.available,
+          // Garante que sempre seja um array, mesmo que vazio
+          optionGroups: product.optionGroups || [],
         });
       });
     });
@@ -119,7 +145,6 @@ export function MenuManagement() {
       if (editingProduct) {
         await api.put(`/products/${editingProduct.id}`, payload);
       } else {
-        // Encontra ID da categoria pelo nome
         const targetCategory = menuData?.categories.find(
           (c) => c.name === data.category
         );
@@ -284,6 +309,10 @@ export function MenuManagement() {
                 onToggleAvailability={(id, current) =>
                   toggleAvailability({ id, available: !current })
                 }
+                onManageOptions={(p) => {
+                  setProductToManageOptions(p);
+                  setIsOptionsDialogOpen(true);
+                }}
               />
             ))
           )}
@@ -331,6 +360,10 @@ export function MenuManagement() {
                     onToggleAvailability={(id, current) =>
                       toggleAvailability({ id, available: !current })
                     }
+                    onManageOptions={(p) => {
+                      setProductToManageOptions(p);
+                      setIsOptionsDialogOpen(true);
+                    }}
                   />
                 ))
             )}
@@ -351,6 +384,12 @@ export function MenuManagement() {
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
         onSave={createCategory}
+      />
+
+      <OptionsDialog
+        open={isOptionsDialogOpen}
+        onOpenChange={setIsOptionsDialogOpen}
+        product={productToManageOptions}
       />
 
       <DeleteDialog

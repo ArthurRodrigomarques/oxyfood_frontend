@@ -1,16 +1,18 @@
 "use client";
 
-import { Product } from "@/data/mockData";
+import { FrontendProduct } from "./menu-management";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Layers } from "lucide-react";
 import Image from "next/image";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductItemProps {
-  product: Product;
-  onEdit: (product: Product) => void;
-  onDelete: (product: Product) => void;
+  product: FrontendProduct;
+  onEdit: (product: FrontendProduct) => void;
+  onDelete: (product: FrontendProduct) => void;
+  onManageOptions: (product: FrontendProduct) => void;
   onToggleAvailability: (productId: string, currentStatus: boolean) => void;
 }
 
@@ -18,19 +20,26 @@ export function ProductItem({
   product,
   onEdit,
   onDelete,
+  onManageOptions,
   onToggleAvailability,
 }: ProductItemProps) {
   const getCategoryColor = (cat: string) => {
-    switch (cat) {
-      case "lanches":
-        return "bg-emerald-100 text-emerald-800 hover:bg-emerald-200";
-      case "pizzas":
-        return "bg-orange-100 text-orange-800 hover:bg-orange-200";
-      case "bebidas":
-        return "bg-blue-100 text-blue-800 hover:bg-blue-200";
-      default:
-        return "bg-gray-100 text-gray-800";
+    const lowerCat = cat.toLowerCase();
+
+    if (lowerCat.includes("lanche") || lowerCat.includes("burger")) {
+      return "bg-emerald-100 text-emerald-800 border-emerald-200";
     }
+    if (lowerCat.includes("pizza")) {
+      return "bg-orange-100 text-orange-800 border-orange-200";
+    }
+    if (lowerCat.includes("bebida") || lowerCat.includes("suco")) {
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    }
+    if (lowerCat.includes("sobremesa") || lowerCat.includes("doce")) {
+      return "bg-pink-100 text-pink-800 border-pink-200";
+    }
+
+    return "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   return (
@@ -47,7 +56,9 @@ export function ProductItem({
       {/* Informações */}
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg truncate">{product.name}</h3>
+          <h3 className="font-bold text-lg truncate text-gray-800">
+            {product.name}
+          </h3>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-1">
           {product.description}
@@ -55,22 +66,40 @@ export function ProductItem({
         <div className="flex items-center gap-3 pt-1">
           <Badge
             variant="secondary"
-            className={`border-none ${getCategoryColor(product.category)}`}
+            className={`border ${getCategoryColor(product.category)}`}
           >
             {product.category}
           </Badge>
           <span className="font-bold text-orange-600 text-lg">
-            R$ {product.price.toFixed(2)}
+            {formatCurrency(product.price)}
           </span>
         </div>
       </div>
 
       {/* Ações (Direita) */}
-      <div className="flex items-center gap-6 self-end sm:self-center ml-auto mt-2 sm:mt-0">
+      <div className="flex items-center gap-4 self-end sm:self-center ml-auto mt-2 sm:mt-0">
+        {/* Botão de Complementos */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="hidden sm:flex gap-2 text-xs"
+          onClick={() => onManageOptions(product)}
+        >
+          <Layers className="h-3.5 w-3.5" />
+          Opções
+        </Button>
+
+        {/* Botão Mobile (apenas ícone) */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="sm:hidden h-9 w-9"
+          onClick={() => onManageOptions(product)}
+        >
+          <Layers className="h-4 w-4" />
+        </Button>
+
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">
-            Disponível
-          </span>
           <Switch
             checked={product.available}
             onCheckedChange={() =>
