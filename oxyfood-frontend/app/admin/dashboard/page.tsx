@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { io } from "socket.io-client";
 
-// Interfaces API
+// --- INTERFACES ---
 interface ApiOrderItem {
   id: string;
   quantity: number;
@@ -49,22 +50,22 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { activeRestaurantId, user } = useAuthStore();
 
-  // Som e Refs
-  const previousPendingCountRef = useRef(0);
+  // Refs para Áudio
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Inicializa áudio
+  // Inicializa o objeto de áudio apenas no cliente
   useEffect(() => {
     if (typeof window !== "undefined") {
       audioRef.current = new Audio("/notification.mp3");
     }
   }, []);
 
+  // Obter o Slug do Restaurante atual para buscar o status
   const activeRestaurantSlug = user?.restaurants?.find(
     (r) => r.id === activeRestaurantId
   )?.slug;
 
-  // 1. QUERY: Buscar Status da Loja
+  // Buscar Status da Loja
   const { data: restaurantData } = useQuery({
     queryKey: ["restaurant-status", activeRestaurantId],
     queryFn: async () => {
@@ -79,7 +80,7 @@ export default function DashboardPage() {
 
   const isStoreOpen = restaurantData?.restaurant?.isOpen ?? false;
 
-  // 2. MUTATION: Alternar Status (Abrir/Fechar)
+  // Mutação para Alternar Status
   const { mutate: toggleStoreStatus, isPending: isToggling } = useMutation({
     mutationFn: async (checked: boolean) => {
       await api.patch(`/restaurants/${activeRestaurantId}/toggle-status`, {
@@ -97,7 +98,7 @@ export default function DashboardPage() {
     },
   });
 
-  // 3. QUERY: Buscar Pedidos
+  // Buscar Pedidos Iniciais
   const {
     data: orders = [],
     isLoading: isLoadingOrders,
@@ -129,27 +130,45 @@ export default function DashboardPage() {
       })) as Order[];
     },
     enabled: !!activeRestaurantId,
-    refetchInterval: 5000,
   });
 
-  // Lógica de Notificação Sonora
   useEffect(() => {
-    const currentPendingCount = orders.filter(
-      (o) => o.status === "PENDING"
-    ).length;
+    if (!activeRestaurantId) return;
 
-    if (currentPendingCount > previousPendingCountRef.current) {
-      toast.info("Novo pedido chegou!", { icon: "🔔" });
+    const socketUrl = "http://localhost:3333";
+    const socket = io(socketUrl);
+
+    socket.on("connect", () => {
+      console.log("🟢 Conectado ao WebSocket!");
+      // Entra na sala específica deste restaurante
+      socket.emit("join-restaurant", activeRestaurantId);
+    });
+
+    // Ouvinte de Novos Pedidos
+    socket.on("new-order", (newOrder) => {
+      console.log("🔔 Novo pedido recebido via Socket:", newOrder);
+
+      // 1. Toca o som
       audioRef.current
         ?.play()
-        .catch(() => console.log("Interação necessária para o som"));
-    }
+        .catch((e) => console.log("Som bloqueado pelo navegador", e));
 
-    previousPendingCountRef.current = currentPendingCount;
-  }, [orders]);
+      // 2. Notificação Visual
+      toast.success(`Novo pedido de ${newOrder.customerName}!`, {
+        duration: 5000,
+        icon: "🍔",
+        description: `Valor: R$ ${Number(newOrder.totalPrice).toFixed(2)}`,
+      });
 
-  // Mutation de Status do Pedido
-  const { mutate: updateOrderStatus } = useMutation({
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [activeRestaurantId, queryClient]);
+
+  const { mutate: updateStatus } = useMutation({
     mutationFn: async ({
       orderId,
       newStatus,
@@ -160,19 +179,13 @@ export default function DashboardPage() {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
     },
     onSuccess: () => {
-      toast.success("Pedido atualizado!");
+      toast.success("Status do pedido atualizado!");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
-    onError: () => toast.error("Erro ao atualizar pedido."),
+    onError: () => {
+      toast.error("Erro ao atualizar pedido.");
+    },
   });
-
-  if (!activeRestaurantId) {
-    return (
-      <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
-        <OnboardingRestaurant />
-      </main>
-    );
-  }
 
   const handleUpdateStatus = (orderId: string) => {
     const order = orders.find((o) => o.id === orderId);
@@ -184,19 +197,28 @@ export default function DashboardPage() {
     else if (order.status === "OUT") nextStatus = "COMPLETED";
 
     if (nextStatus) {
-      updateOrderStatus({ orderId, newStatus: nextStatus });
+      updateStatus({ orderId, newStatus: nextStatus });
     }
   };
 
   const handleReject = (orderId: string) => {
     if (confirm("Tem certeza que deseja rejeitar este pedido?")) {
-      updateOrderStatus({ orderId, newStatus: "REJECTED" });
+      updateStatus({ orderId, newStatus: "REJECTED" });
     }
   };
 
+  // Filtragem das colunas
   const pendingOrders = orders.filter((o) => o.status === "PENDING");
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
   const deliveryOrders = orders.filter((o) => o.status === "OUT");
+
+  if (!activeRestaurantId) {
+    return (
+      <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
+        <OnboardingRestaurant />
+      </main>
+    );
+  }
 
   if (isLoadingOrders) {
     return (
@@ -208,6 +230,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
+      {/* HEADER */}
       <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-4">
           <MobileSidebar />
@@ -225,6 +248,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-6 w-full sm:w-auto justify-end">
+          {/* SWITCH DE LOJA ABERTA/FECHADA */}
           <div
             className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
               isStoreOpen
@@ -247,6 +271,7 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* BUSCA */}
           <div className="relative hidden md:block w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -279,6 +304,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      {/* ÁREA DE COLUNAS (KANBAN) */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto md:overflow-y-hidden md:overflow-x-auto bg-gray-50/50">
         <div className="flex gap-4 sm:gap-6 h-auto md:h-full flex-col md:flex-row min-w-0 md:min-w-[1000px]">
           <OrderColumn
