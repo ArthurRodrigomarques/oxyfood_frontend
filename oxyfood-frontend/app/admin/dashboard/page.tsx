@@ -15,7 +15,6 @@ import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { io } from "socket.io-client";
 
-// --- INTERFACES ---
 interface ApiOrderItem {
   id: string;
   quantity: number;
@@ -50,22 +49,18 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { activeRestaurantId, user } = useAuthStore();
 
-  // Refs para Áudio
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Inicializa o objeto de áudio apenas no cliente
   useEffect(() => {
     if (typeof window !== "undefined") {
       audioRef.current = new Audio("/notification.mp3");
     }
   }, []);
 
-  // Obter o Slug do Restaurante atual para buscar o status
   const activeRestaurantSlug = user?.restaurants?.find(
     (r) => r.id === activeRestaurantId
   )?.slug;
 
-  // Buscar Status da Loja
   const { data: restaurantData } = useQuery({
     queryKey: ["restaurant-status", activeRestaurantId],
     queryFn: async () => {
@@ -80,7 +75,6 @@ export default function DashboardPage() {
 
   const isStoreOpen = restaurantData?.restaurant?.isOpen ?? false;
 
-  // Mutação para Alternar Status
   const { mutate: toggleStoreStatus, isPending: isToggling } = useMutation({
     mutationFn: async (checked: boolean) => {
       await api.patch(`/restaurants/${activeRestaurantId}/toggle-status`, {
@@ -98,7 +92,6 @@ export default function DashboardPage() {
     },
   });
 
-  // Buscar Pedidos Iniciais
   const {
     data: orders = [],
     isLoading: isLoadingOrders,
@@ -135,25 +128,35 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!activeRestaurantId) return;
 
+    const token = localStorage.getItem("oxyfood-token");
     const socketUrl = "http://localhost:3333";
-    const socket = io(socketUrl);
+
+    const socket = io(socketUrl, {
+      auth: {
+        token: token,
+      },
+    });
 
     socket.on("connect", () => {
-      console.log("🟢 Conectado ao WebSocket!");
-      // Entra na sala específica deste restaurante
+      console.log("Conectado ao WebSocket!");
       socket.emit("join-restaurant", activeRestaurantId);
     });
 
-    // Ouvinte de Novos Pedidos
-    socket.on("new-order", (newOrder) => {
-      console.log("🔔 Novo pedido recebido via Socket:", newOrder);
+    socket.on("connect_error", (err) => {
+      console.error("Erro de conexão no socket:", err.message);
+      if (
+        err.message === "Autenticação necessária." ||
+        err.message === "Token inválido ou expirado."
+      ) {
+        toast.error("Sessão expirada. Por favor, faça login novamente.");
+      }
+    });
 
-      // 1. Toca o som
+    socket.on("new-order", (newOrder) => {
       audioRef.current
         ?.play()
         .catch((e) => console.log("Som bloqueado pelo navegador", e));
 
-      // 2. Notificação Visual
       toast.success(`Novo pedido de ${newOrder.customerName}!`, {
         duration: 5000,
         icon: "🍔",
@@ -207,7 +210,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Filtragem das colunas
   const pendingOrders = orders.filter((o) => o.status === "PENDING");
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
   const deliveryOrders = orders.filter((o) => o.status === "OUT");
@@ -230,7 +232,6 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
-      {/* HEADER */}
       <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-4">
           <MobileSidebar />
@@ -248,7 +249,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-6 w-full sm:w-auto justify-end">
-          {/* SWITCH DE LOJA ABERTA/FECHADA */}
           <div
             className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
               isStoreOpen
@@ -271,7 +271,6 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* BUSCA */}
           <div className="relative hidden md:block w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -304,7 +303,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* ÁREA DE COLUNAS (KANBAN) */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto md:overflow-y-hidden md:overflow-x-auto bg-gray-50/50">
         <div className="flex gap-4 sm:gap-6 h-auto md:h-full flex-col md:flex-row min-w-0 md:min-w-[1000px]">
           <OrderColumn
