@@ -19,7 +19,7 @@ export function OrderColumn({
   onReject,
 }: OrderColumnProps) {
   return (
-    <div className="flex-1 min-w-[350px] bg-gray-50/50 rounded-xl border border-gray-200/60 h-full flex flex-col overflow-hidden">
+    <div className="flex-1 w-full md:w-auto md:min-w-[350px] bg-gray-50/50 rounded-xl border border-gray-200/60 h-[500px] md:h-full flex flex-col overflow-hidden shadow-sm">
       <div
         className={`p-4 border-b bg-white flex justify-between items-center sticky top-0 z-10`}
       >
@@ -47,7 +47,7 @@ export function OrderColumn({
       </div>
 
       {/* Lista de Cards */}
-      <ScrollArea className="flex-1 p-3">
+      <ScrollArea className="flex-1 p-3 bg-gray-100/50">
         <div className="space-y-3 pb-4">
           {orders.map((order) => (
             <OrderCard
@@ -58,7 +58,7 @@ export function OrderColumn({
             />
           ))}
           {orders.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground opacity-50">
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground opacity-50 h-full">
               <p className="text-sm font-medium">Nenhum pedido</p>
             </div>
           )}

@@ -19,6 +19,7 @@ import {
   ArrowRight,
   ArrowLeft,
   LucideIcon,
+  Store,
 } from "lucide-react";
 import { RestaurantData } from "@/types/order";
 
@@ -101,6 +102,9 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
   const deliveryFee = Number(restaurant.deliveryFee || 0);
   const finalTotal = cartTotal + deliveryFee;
 
+  // VERIFICAÇÃO DE LOJA FECHADA
+  const isStoreClosed = !restaurant.isOpen;
+
   const {
     register,
     handleSubmit,
@@ -119,6 +123,10 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
   async function onSubmit(data: CheckoutFormData) {
     if (items.length === 0) return;
+    if (isStoreClosed) {
+      toast.error("A loja está fechada no momento.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -186,6 +194,21 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
             {step === "cart" ? "Sua Sacola" : "Finalizar Pedido"}
           </SheetTitle>
         </SheetHeader>
+
+        {/* AVISO DE LOJA FECHADA */}
+        {isStoreClosed && (
+          <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3 text-red-800 animate-in slide-in-from-top-2">
+            <div className="bg-red-100 p-2 rounded-full">
+              <Store className="h-5 w-5 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold">Loja Fechada</p>
+              <p className="text-xs text-red-600/80">
+                Não estamos aceitando pedidos agora.
+              </p>
+            </div>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -412,8 +435,9 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
               {step === "cart" ? (
                 <Button
-                  className="w-full h-12 text-base font-bold bg-orange-500 hover:bg-orange-600 rounded-xl shadow-lg hover:shadow-orange-200 transition-all"
+                  className="w-full h-12 text-base font-bold bg-orange-500 hover:bg-orange-600 rounded-xl shadow-lg hover:shadow-orange-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setStep("details")}
+                  disabled={isStoreClosed}
                 >
                   Continuar para Entrega
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -422,7 +446,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                 <Button
                   form="checkout-form"
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isStoreClosed} // BLOQUEIA ENVIO
                   className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700 rounded-xl shadow-lg hover:shadow-green-200 transition-all"
                 >
                   {isSubmitting ? (

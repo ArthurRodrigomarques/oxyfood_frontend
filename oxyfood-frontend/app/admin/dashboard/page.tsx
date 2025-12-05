@@ -15,7 +15,7 @@ import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-// Interfaces da API
+// Interfaces API
 interface ApiOrderItem {
   id: string;
   quantity: number;
@@ -44,18 +44,15 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { activeRestaurantId } = useAuthStore();
 
-  // Lógica do Áudio e Correção do Loop Infinito
   const previousPendingCountRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Inicializa o áudio
   useEffect(() => {
     if (typeof window !== "undefined") {
       audioRef.current = new Audio("/notification.mp3");
     }
   }, []);
 
-  // Busca de Pedidos
   const {
     data: orders = [],
     isLoading,
@@ -90,7 +87,6 @@ export default function DashboardPage() {
     refetchInterval: 5000,
   });
 
-  // Lógica do Som
   useEffect(() => {
     const currentPendingCount = orders.filter(
       (o) => o.status === "PENDING"
@@ -106,7 +102,6 @@ export default function DashboardPage() {
     previousPendingCountRef.current = currentPendingCount;
   }, [orders]);
 
-  // Mutação para atualizar status
   const { mutate: updateStatus } = useMutation({
     mutationFn: async ({
       orderId,
@@ -134,7 +129,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Função para Avançar (Aceitar -> Preparar -> Entregar -> Concluir)
   const handleUpdateStatus = (orderId: string) => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
@@ -149,14 +143,12 @@ export default function DashboardPage() {
     }
   };
 
-  // Função para Rejeitar
   const handleReject = (orderId: string) => {
     if (confirm("Tem certeza que deseja rejeitar este pedido?")) {
       updateStatus({ orderId, newStatus: "REJECTED" });
     }
   };
 
-  // Filtragem das colunas
   const pendingOrders = orders.filter((o) => o.status === "PENDING");
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
   const deliveryOrders = orders.filter((o) => o.status === "OUT");
@@ -171,7 +163,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-4">
           <MobileSidebar />
           <div>
@@ -227,8 +219,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex-1 p-4 sm:p-6 overflow-x-auto overflow-y-hidden">
-        <div className="flex gap-4 sm:gap-6 h-full min-w-[300px] md:min-w-[1000px] flex-col md:flex-row">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto md:overflow-y-hidden md:overflow-x-auto bg-gray-50/50">
+        <div className="flex gap-4 sm:gap-6 h-auto md:h-full flex-col md:flex-row min-w-0 md:min-w-[1000px]">
           <OrderColumn
             title="NOVOS PEDIDOS"
             colorClass="bg-blue-500"
