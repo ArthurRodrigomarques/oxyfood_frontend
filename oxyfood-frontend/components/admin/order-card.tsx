@@ -22,6 +22,7 @@ import {
   Bike,
   ChefHat,
   Timer,
+  Printer,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -38,11 +39,10 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
     {
       Pix: QrCode,
       Cartão: CreditCard,
-      Cartao: CreditCard, // Garantindo compatibilidade
+      Cartao: CreditCard,
       Dinheiro: Banknote,
     }[order.paymentMethod] || Banknote;
 
-  // Define cores e ícones baseados no status
   const statusConfig = {
     PENDING: {
       color: "bg-blue-100 text-blue-700",
@@ -74,7 +74,6 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
   const config = statusConfig[order.status] || statusConfig.PENDING;
   const StatusIcon = config.icon;
 
-  // Texto do botão principal
   const getActionLabel = () => {
     switch (order.status) {
       case "PENDING":
@@ -90,9 +89,23 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
 
   const actionLabel = getActionLabel();
 
+  const handlePrint = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const width = 450;
+    const height = 600;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+
+    window.open(
+      `/admin/orders/${order.id}/print`,
+      "ImprimirPedido",
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`
+    );
+  };
+
   return (
     <Card
-      className={`border-2 shadow-sm ${config.border} flex flex-col h-full`}
+      className={`border-2 shadow-sm ${config.border} flex flex-col h-full group relative`}
     >
       {/* CABEÇALHO */}
       <CardHeader className="p-3 pb-2 bg-gray-50/50 border-b flex flex-row justify-between items-center space-y-0">
@@ -111,7 +124,20 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
             })}
           </span>
         </div>
-        <StatusIcon className={`h-5 w-5 ${config.color.split(" ")[1]}`} />
+
+        <div className="flex items-center gap-1">
+          {/* BOTÃO IMPRIMIR */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-200"
+            onClick={handlePrint}
+            title="Imprimir Cupom"
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+          <StatusIcon className={`h-5 w-5 ${config.color.split(" ")[1]}`} />
+        </div>
       </CardHeader>
 
       <CardContent className="p-3 flex-1 flex flex-col gap-3">
