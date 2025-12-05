@@ -25,8 +25,8 @@ interface StoreFormData {
   addressText: string;
   phoneNumber: string;
   description: string;
-  logoUrl: string;
-  bannerUrl: string;
+  logoUrl: string | null;
+  bannerUrl: string | null;
 }
 
 interface UserRestaurant {
@@ -56,15 +56,15 @@ export function StoreSettings() {
   const { activeRestaurantId } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, reset, setValue, control } =
+  const { register, handleSubmit, reset, setValue, control, formState } =
     useForm<StoreFormData>({
       defaultValues: {
         name: "",
         addressText: "",
         phoneNumber: "",
         description: "",
-        logoUrl: "",
-        bannerUrl: "",
+        logoUrl: null,
+        bannerUrl: null,
       },
     });
 
@@ -75,7 +75,6 @@ export function StoreSettings() {
     queryKey: ["restaurant-settings", activeRestaurantId],
     queryFn: async () => {
       const meResponse = await api.get<MeResponse>("/me");
-
       const myRestaurant = meResponse.data.user.restaurants.find(
         (r) => r.id === activeRestaurantId
       );
@@ -89,29 +88,38 @@ export function StoreSettings() {
       return null;
     },
     enabled: !!activeRestaurantId,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (restaurant) {
+    if (restaurant && !formState.isDirty) {
       reset({
-        name: restaurant.name,
-        addressText: restaurant.addressText,
-        phoneNumber: restaurant.phoneNumber,
+        name: restaurant.name || "",
+        addressText: restaurant.addressText || "",
+        phoneNumber: restaurant.phoneNumber || "",
         description: restaurant.description || "",
-        logoUrl: restaurant.logoUrl || "",
-        bannerUrl: restaurant.bannerUrl || "",
+        logoUrl: restaurant.logoUrl,
+        bannerUrl: restaurant.bannerUrl,
       });
     }
-  }, [restaurant, reset]);
+  }, [restaurant, reset, formState.isDirty]);
 
   const { mutate: updateStore, isPending } = useMutation({
     mutationFn: async (data: StoreFormData) => {
-      await api.put(`/restaurants/${activeRestaurantId}`, data);
+      const payload = {
+        ...data,
+        logoUrl: data.logoUrl || null,
+        bannerUrl: data.bannerUrl || null,
+      };
+
+      await api.put(`/restaurants/${activeRestaurantId}`, payload);
     },
     onSuccess: () => {
       toast.success("Loja atualizada com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["restaurant-settings"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-public"] });
+      // Reset para limpar o estado dirty com os novos valores
+      reset(undefined, { keepValues: true });
     },
     onError: () => {
       toast.error("Erro ao atualizar loja.");
@@ -132,7 +140,6 @@ export function StoreSettings() {
         onSubmit={handleSubmit((data) => updateStore(data))}
         className="space-y-6"
       >
-        {/* IMAGENS */}
         <Card>
           <CardHeader>
             <CardTitle>Identidade Visual</CardTitle>
@@ -142,34 +149,45 @@ export function StoreSettings() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-col md:flex-row gap-6">
-              {/* Logo (Quadrado) */}
-              <div className="w-full md:w-48 shrink-0">
+              <div className="w-full md:w-48 shrink-0 space-y-2">
                 <ImageUpload
                   label="Logo da Loja"
                   value={logoUrl}
-                  onChange={(url) => setValue("logoUrl", url)}
+                  onChange={(url) => {
+                    setValue("logoUrl", url, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
                   aspectRatio="square"
                 />
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Aparece no cabeçalho
+                </p>
               </div>
 
-              {/* Banner (Retangular) */}
-              <div className="flex-1">
+              <div className="flex-1 space-y-2">
                 <ImageUpload
-                  label="Banner de Capa (Recomendado: 1200x400)"
+                  label="Banner de Capa (1200x400)"
                   value={bannerUrl}
-                  onChange={(url) => setValue("bannerUrl", url)}
+                  onChange={(url) => {
+                    setValue("bannerUrl", url, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
                   aspectRatio="wide"
                 />
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Aparece no topo da página da loja
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* DADOS BÁSICOS */}
         <Card>
           <CardHeader>
             <CardTitle>Informações Básicas</CardTitle>
-            <CardDescription>Endereço, contato e descrição.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
@@ -190,11 +208,10 @@ export function StoreSettings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Descrição (Sobre a loja)</Label>
+              <Label htmlFor="description">Descrição</Label>
               <Textarea
                 id="description"
                 rows={4}
-                placeholder="Conte um pouco sobre sua história, especialidades..."
                 {...register("description")}
               />
             </div>

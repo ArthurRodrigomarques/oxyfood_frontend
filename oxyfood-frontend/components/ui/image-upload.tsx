@@ -35,7 +35,7 @@ export function ImageUpload({
     onClientUploadComplete: (res) => {
       setIsUploading(false);
       if (res && res[0]) {
-        onChange(res[0].url);
+        onChange(res[0].ufsUrl || res[0].url);
         toast.success("Imagem enviada!");
       }
     },
@@ -76,10 +76,15 @@ export function ImageUpload({
           </div>
         )}
 
-        {/* PREVIEW DA IMAGEM */}
         {value ? (
           <>
-            <Image src={value} alt="Upload" fill className="object-cover" />
+            <Image
+              src={value}
+              alt="Upload"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
             <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 type="button"
@@ -112,7 +117,6 @@ export function ImageUpload({
           </div>
         )}
 
-        {/* INPUT INVISÍVEL */}
         <input
           type="file"
           accept="image/*"

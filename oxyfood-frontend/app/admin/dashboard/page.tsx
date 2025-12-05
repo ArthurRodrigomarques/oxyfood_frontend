@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MobileSidebar } from "@/components/admin/mobile-sidebar";
@@ -12,7 +12,6 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 // Interfaces API
@@ -39,23 +38,69 @@ interface ApiResponse {
   orders: ApiOrder[];
 }
 
-export default function DashboardPage() {
-  const [isStoreOpen, setIsStoreOpen] = useState(true);
-  const queryClient = useQueryClient();
-  const { activeRestaurantId } = useAuthStore();
+interface RestaurantDetails {
+  restaurant: {
+    isOpen: boolean;
+    name: string;
+  };
+}
 
+export default function DashboardPage() {
+  const queryClient = useQueryClient();
+  const { activeRestaurantId, user } = useAuthStore();
+
+  // Som e Refs
   const previousPendingCountRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Inicializa áudio
   useEffect(() => {
     if (typeof window !== "undefined") {
       audioRef.current = new Audio("/notification.mp3");
     }
   }, []);
 
+  const activeRestaurantSlug = user?.restaurants?.find(
+    (r) => r.id === activeRestaurantId
+  )?.slug;
+
+  // 1. QUERY: Buscar Status da Loja
+  const { data: restaurantData } = useQuery({
+    queryKey: ["restaurant-status", activeRestaurantId],
+    queryFn: async () => {
+      if (!activeRestaurantSlug) return null;
+      const response = await api.get<RestaurantDetails>(
+        `/restaurants/${activeRestaurantSlug}`
+      );
+      return response.data;
+    },
+    enabled: !!activeRestaurantSlug,
+  });
+
+  const isStoreOpen = restaurantData?.restaurant?.isOpen ?? false;
+
+  // 2. MUTATION: Alternar Status (Abrir/Fechar)
+  const { mutate: toggleStoreStatus, isPending: isToggling } = useMutation({
+    mutationFn: async (checked: boolean) => {
+      await api.patch(`/restaurants/${activeRestaurantId}/toggle-status`, {
+        isOpen: checked,
+      });
+    },
+    onSuccess: (_, variables) => {
+      const statusText = variables ? "ABERTA" : "FECHADA";
+      toast.success(`A loja agora está ${statusText}`);
+      queryClient.invalidateQueries({ queryKey: ["restaurant-status"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-public"] });
+    },
+    onError: () => {
+      toast.error("Erro ao alterar status da loja.");
+    },
+  });
+
+  // 3. QUERY: Buscar Pedidos
   const {
     data: orders = [],
-    isLoading,
+    isLoading: isLoadingOrders,
     isRefetching,
   } = useQuery({
     queryKey: ["orders", activeRestaurantId],
@@ -87,6 +132,7 @@ export default function DashboardPage() {
     refetchInterval: 5000,
   });
 
+  // Lógica de Notificação Sonora
   useEffect(() => {
     const currentPendingCount = orders.filter(
       (o) => o.status === "PENDING"
@@ -102,7 +148,8 @@ export default function DashboardPage() {
     previousPendingCountRef.current = currentPendingCount;
   }, [orders]);
 
-  const { mutate: updateStatus } = useMutation({
+  // Mutation de Status do Pedido
+  const { mutate: updateOrderStatus } = useMutation({
     mutationFn: async ({
       orderId,
       newStatus,
@@ -113,12 +160,10 @@ export default function DashboardPage() {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
     },
     onSuccess: () => {
-      toast.success("Status do pedido atualizado!");
+      toast.success("Pedido atualizado!");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
-    onError: () => {
-      toast.error("Erro ao atualizar pedido.");
-    },
+    onError: () => toast.error("Erro ao atualizar pedido."),
   });
 
   if (!activeRestaurantId) {
@@ -139,13 +184,13 @@ export default function DashboardPage() {
     else if (order.status === "OUT") nextStatus = "COMPLETED";
 
     if (nextStatus) {
-      updateStatus({ orderId, newStatus: nextStatus });
+      updateOrderStatus({ orderId, newStatus: nextStatus });
     }
   };
 
   const handleReject = (orderId: string) => {
     if (confirm("Tem certeza que deseja rejeitar este pedido?")) {
-      updateStatus({ orderId, newStatus: "REJECTED" });
+      updateOrderStatus({ orderId, newStatus: "REJECTED" });
     }
   };
 
@@ -153,7 +198,7 @@ export default function DashboardPage() {
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
   const deliveryOrders = orders.filter((o) => o.status === "OUT");
 
-  if (isLoading) {
+  if (isLoadingOrders) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
@@ -180,14 +225,26 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-6 w-full sm:w-auto justify-end">
-          <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
-            <span className="text-xs sm:text-sm font-medium text-gray-600 hidden sm:inline">
-              Loja
+          <div
+            className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
+              isStoreOpen
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+            }`}
+          >
+            <span
+              className={`text-xs sm:text-sm font-bold hidden sm:inline ${
+                isStoreOpen ? "text-green-700" : "text-red-700"
+              }`}
+            >
+              {isStoreOpen ? "Loja Aberta" : "Loja Fechada"}
             </span>
-            <Switch checked={isStoreOpen} onCheckedChange={setIsStoreOpen} />
-            <Badge className={isStoreOpen ? "bg-green-500" : "bg-red-500"}>
-              {isStoreOpen ? "ABERTO" : "FECHADO"}
-            </Badge>
+            <Switch
+              checked={isStoreOpen}
+              onCheckedChange={(checked) => toggleStoreStatus(checked)}
+              disabled={isToggling}
+              className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-red-400"
+            />
           </div>
 
           <div className="relative hidden md:block w-64">
@@ -202,9 +259,12 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() =>
-                queryClient.invalidateQueries({ queryKey: ["orders"] })
-              }
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["orders"] });
+                queryClient.invalidateQueries({
+                  queryKey: ["restaurant-status"],
+                });
+              }}
             >
               <RefreshCw className="h-5 w-5 text-gray-500" />
             </Button>

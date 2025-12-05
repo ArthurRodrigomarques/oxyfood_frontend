@@ -7,7 +7,7 @@ import { RestaurantHeader } from "@/components/restaurant-header";
 import { CategoryList } from "@/components/category-list";
 import { ProductItem } from "@/components/product-item";
 import { CheckoutSheet } from "@/components/checkout-sheet";
-import { Loader2, Search, X, Megaphone, Star } from "lucide-react";
+import { Loader2, Search, X, Megaphone, Star, ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -26,7 +26,6 @@ export default function RestaurantPage({
   const { slug } = use(params);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Busca os dados REAIS do backend
   const { data, isLoading, isError } = useQuery({
     queryKey: ["restaurant-public", slug],
     queryFn: async () => {
@@ -82,8 +81,8 @@ export default function RestaurantPage({
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] pb-20 relative">
-      {/* Barra de Aviso Dinâmica */}
-      <div className="bg-orange-500 text-white text-center py-2 text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
+      {/* Barra de Aviso */}
+      <div className="bg-orange-500 text-white text-center py-2 text-sm font-bold flex items-center justify-center gap-2 shadow-sm z-40 relative">
         <Megaphone className="h-4 w-4" />
         <span>
           {restaurant.freeDeliveryAbove
@@ -94,8 +93,34 @@ export default function RestaurantPage({
         </span>
       </div>
 
-      <RestaurantHeader restaurant={restaurant} />
+      {/* ÁREA DO BANNER DE CAPA */}
+      <div className="relative w-full h-48 sm:h-64 md:h-80 bg-gray-200">
+        {restaurant.bannerUrl && !restaurant.bannerUrl.includes("imgur.com") ? (
+          <Image
+            src={restaurant.bannerUrl}
+            alt="Banner da Loja"
+            fill
+            className="object-cover"
+            priority={true}
+            sizes="100vw"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-gray-100 to-gray-200">
+            <ImageIcon className="h-12 w-12 opacity-20 mb-2" />
+            <span className="text-sm opacity-40 font-medium">
+              Sem imagem de capa
+            </span>
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-black/60 to-transparent" />
+      </div>
 
+      {/* HEADER (Com Logo e Info) */}
+      <div className="-mt-12 relative z-10">
+        <RestaurantHeader restaurant={restaurant} />
+      </div>
+
+      {/* Busca e Categorias */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="container max-w-6xl mx-auto px-4 py-4 space-y-4">
           <div className="relative">
@@ -122,8 +147,9 @@ export default function RestaurantPage({
         </div>
       </div>
 
+      {/* Conteúdo Principal */}
       <main className="container mx-auto px-4 py-8 max-w-6xl space-y-10">
-        {/* Destaques Dinâmicos */}
+        {/* Destaques */}
         {!searchQuery && highlights.length > 0 && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center gap-2 mb-4">
@@ -139,7 +165,7 @@ export default function RestaurantPage({
                 >
                   <div className="absolute inset-0">
                     <Image
-                      src={product.imageUrl || "/hamburguer.jpg"} // Fallback se não tiver imagem no banco
+                      src={product.imageUrl || "/hamburguer.jpg"}
                       alt={product.name}
                       fill
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -161,6 +187,7 @@ export default function RestaurantPage({
           </section>
         )}
 
+        {/* Lista de Produtos */}
         {filteredCategories.length > 0 ? (
           filteredCategories.map((category) => (
             <section
