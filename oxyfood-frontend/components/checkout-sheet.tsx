@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCartStore } from "@/store/cart-store";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@/lib/api";
@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   LucideIcon,
   Store,
+  Globe,
 } from "lucide-react";
 import { RestaurantData } from "@/types/order";
 
@@ -45,18 +46,20 @@ const checkoutSchema = z.object({
   customerName: z.string().min(3, "Nome muito curto"),
   customerPhone: z.string().min(9, "Telefone inválido"),
   customerAddress: z.string().min(10, "Endereço muito curto"),
-  paymentMethod: z.enum(["Dinheiro", "Pix", "Cartao"]),
+  paymentMethod: z.enum(["Dinheiro", "Pix", "Cartao", "CartaoOnline"]),
   trocoPara: z.string().optional(),
 });
 
 type CheckoutFormData = z.infer<typeof checkoutSchema>;
+
+type PaymentMethodType = "Dinheiro" | "Pix" | "Cartao" | "CartaoOnline";
 
 interface CheckoutSheetProps {
   restaurant: RestaurantData;
 }
 
 interface PaymentOptionProps {
-  value: "Dinheiro" | "Pix" | "Cartao";
+  value: PaymentMethodType;
   icon: LucideIcon;
   label: string;
   selected: string;
@@ -85,7 +88,7 @@ function PaymentOption({
           selected === value ? "text-orange-500" : "text-gray-400"
         )}
       />
-      <span className="text-xs font-bold">{label}</span>
+      <span className="text-xs font-bold text-center">{label}</span>
     </Label>
   );
 }
@@ -102,24 +105,26 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
   const deliveryFee = Number(restaurant.deliveryFee || 0);
   const finalTotal = cartTotal + deliveryFee;
 
-  // VERIFICAÇÃO DE LOJA FECHADA
   const isStoreClosed = !restaurant.isOpen;
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     reset,
     setValue,
     formState: { errors },
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      paymentMethod: "Cartao",
+      paymentMethod: "CartaoOnline",
     },
   });
 
-  const selectedPayment = watch("paymentMethod");
+  const selectedPayment = useWatch({
+    control,
+    name: "paymentMethod",
+  });
 
   async function onSubmit(data: CheckoutFormData) {
     if (items.length === 0) return;
@@ -148,22 +153,28 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
       const createdOrder = response.data.order || response.data;
 
-      // Limpeza do carrinho e UI
       clearCart();
       setIsOpen(false);
       setStep("cart");
       reset();
 
-      if (data.paymentMethod === "Pix") {
-        toast.success("Pedido criado! Pague com Pix agora.", {
-          description: "O QR Code aparecerá na próxima tela.",
-        });
-        router.push(`/orders/${createdOrder.id}`);
-        return;
+      if (data.paymentMethod === "CartaoOnline") {
+        if (createdOrder.paymentLink) {
+          toast.loading("Redirecionando para pagamento seguro...");
+          window.location.href = createdOrder.paymentLink;
+          return;
+        } else {
+          toast.error("Erro ao gerar link de pagamento.", {
+            description: "Tente novamente ou escolha outra forma de pagamento.",
+          });
+          router.push(`/orders/${createdOrder.id}`);
+          return;
+        }
       }
 
-      if (data.paymentMethod === "Cartao" && createdOrder.ticketUrl) {
-        window.location.href = createdOrder.ticketUrl;
+      if (data.paymentMethod === "Pix") {
+        toast.success("Pedido criado! Pague com Pix agora.");
+        router.push(`/orders/${createdOrder.id}`);
         return;
       }
 
@@ -208,9 +219,8 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
           </SheetTitle>
         </SheetHeader>
 
-        {/* AVISO DE LOJA FECHADA */}
         {isStoreClosed && (
-          <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3 text-red-800 animate-in slide-in-from-top-2">
+          <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3 text-red-800">
             <div className="bg-red-100 p-2 rounded-full">
               <Store className="h-5 w-5 text-red-600" />
             </div>
@@ -230,7 +240,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
             </div>
             <h3 className="text-lg font-bold text-gray-800">Sacola Vazia</h3>
             <p className="text-muted-foreground text-sm mt-2 max-w-[200px]">
-              Parece que você ainda não escolheu nada delicioso.
+              Adicione itens deliciosos para continuar.
             </p>
             <Button
               variant="outline"
@@ -367,54 +377,70 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                       </div>
                     </div>
 
-                    <div className="bg-white p-9 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+                    <div className="bg-white p-6 rounded-xl border border-gray-100 space-y-4 shadow-sm">
                       <div className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
                         <Banknote className="h-4 w-4 text-orange-500" />
-                        Pagamento na Entrega
+                        Forma de Pagamento
                       </div>
 
                       <RadioGroup
-                        defaultValue="Cartao"
-                        onValueChange={(val) => {
-                          if (
-                            val === "Cartao" ||
-                            val === "Pix" ||
-                            val === "Dinheiro"
-                          ) {
-                            setValue("paymentMethod", val);
-                          }
-                        }}
-                        className="grid grid-cols-3 gap-3"
+                        defaultValue="CartaoOnline"
+                        onValueChange={(val) =>
+                          setValue("paymentMethod", val as PaymentMethodType)
+                        }
+                        className="grid grid-cols-2 gap-4"
                       >
-                        <PaymentOption
-                          value="Cartao"
-                          icon={CreditCard}
-                          label="Cartão"
-                          selected={selectedPayment}
-                        />
-                        <PaymentOption
-                          value="Pix"
-                          icon={QrCode}
-                          label="Pix"
-                          selected={selectedPayment}
-                        />
-                        <PaymentOption
-                          value="Dinheiro"
-                          icon={Banknote}
-                          label="Dinheiro"
-                          selected={selectedPayment}
-                        />
+                        <div className="col-span-2">
+                          <p className="text-xs font-semibold text-green-600 mb-2 ml-1 flex items-center gap-1">
+                            <Globe className="h-3 w-3" /> Pagar Agora (Mais
+                            Rápido)
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <PaymentOption
+                              value="CartaoOnline"
+                              icon={CreditCard}
+                              label="Crédito Online"
+                              selected={selectedPayment}
+                            />
+                            <PaymentOption
+                              value="Pix"
+                              icon={QrCode}
+                              label="Pix"
+                              selected={selectedPayment}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="col-span-2 border-t pt-4">
+                          <p className="text-xs font-semibold text-gray-500 mb-2 ml-1 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> Pagar na Entrega
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <PaymentOption
+                              value="Cartao"
+                              icon={CreditCard}
+                              label="Maquininha"
+                              selected={selectedPayment}
+                            />
+                            <PaymentOption
+                              value="Dinheiro"
+                              icon={Banknote}
+                              label="Dinheiro"
+                              selected={selectedPayment}
+                            />
+                          </div>
+                        </div>
                       </RadioGroup>
 
                       {selectedPayment === "Dinheiro" && (
-                        <div className="pt-2 animate-in fade-in slide-in-from-top-2">
+                        <div className="pt-2 animate-in fade-in">
                           <Label className="text-xs text-gray-500">
                             Troco para quanto?
                           </Label>
                           <Input
                             type="number"
                             {...register("trocoPara")}
-                            placeholder="Ex: 50,00 (Deixe vazio se não precisar)"
+                            placeholder="Ex: 50,00"
                             className="bg-gray-50 mt-1"
                           />
                         </div>
@@ -465,7 +491,9 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                   {isSubmitting ? (
                     <Loader2 className="animate-spin" />
                   ) : selectedPayment === "Pix" ? (
-                    "Pagar com Pix"
+                    "Gerar Pix"
+                  ) : selectedPayment === "CartaoOnline" ? (
+                    "Pagar com Cartão"
                   ) : (
                     "Confirmar Pedido"
                   )}
