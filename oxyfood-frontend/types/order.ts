@@ -8,8 +8,12 @@ export type OrderStatus =
 export interface OrderItem {
   id: string;
   quantity: number;
-  name: string;
-  extras?: string;
+  unitPrice: number | string;
+  optionsDescription?: string;
+  product: {
+    name: string;
+    imageUrl?: string | null;
+  };
 }
 
 export interface Order {
@@ -19,10 +23,17 @@ export interface Order {
   customerPhone: string;
   customerAddress: string;
   totalPrice: number;
+  deliveryFee: number;
   paymentMethod: "Pix" | "Dinheiro" | "Cartão";
   status: OrderStatus;
-  createdAt: Date;
+  createdAt: Date | string;
   items: OrderItem[];
+
+  // Novos campos de Pagamento e Pix
+  paymentStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED";
+  paymentLink?: string | null;
+  qrCodeBase64?: string | null;
+  mercadoPagoId?: string | null;
 }
 
 export interface Option {

@@ -148,15 +148,28 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
       const createdOrder = response.data.order || response.data;
 
-      toast.success("Pedido enviado!", {
-        description: "Acompanhe o status na próxima tela.",
-      });
-
+      // Limpeza do carrinho e UI
       clearCart();
       setIsOpen(false);
       setStep("cart");
       reset();
 
+      if (data.paymentMethod === "Pix") {
+        toast.success("Pedido criado! Pague com Pix agora.", {
+          description: "O QR Code aparecerá na próxima tela.",
+        });
+        router.push(`/orders/${createdOrder.id}`);
+        return;
+      }
+
+      if (data.paymentMethod === "Cartao" && createdOrder.ticketUrl) {
+        window.location.href = createdOrder.ticketUrl;
+        return;
+      }
+
+      toast.success("Pedido enviado!", {
+        description: "Aguarde a confirmação do restaurante.",
+      });
       router.push(`/orders/${createdOrder.id}`);
     } catch (error) {
       console.error(error);
@@ -446,11 +459,13 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                 <Button
                   form="checkout-form"
                   type="submit"
-                  disabled={isSubmitting || isStoreClosed} // BLOQUEIA ENVIO
+                  disabled={isSubmitting || isStoreClosed}
                   className="w-full h-12 text-base font-bold bg-green-600 hover:bg-green-700 rounded-xl shadow-lg hover:shadow-green-200 transition-all"
                 >
                   {isSubmitting ? (
                     <Loader2 className="animate-spin" />
+                  ) : selectedPayment === "Pix" ? (
+                    "Pagar com Pix"
                   ) : (
                     "Confirmar Pedido"
                   )}
