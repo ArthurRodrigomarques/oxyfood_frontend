@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCartStore } from "@/store/cart-store";
+import { useOrderHistoryStore } from "@/store/order-history-store";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -100,6 +101,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
   const [step, setStep] = useState<"cart" | "details">("cart");
 
   const { items, removeItem, clearCart } = useCartStore();
+  const { addOrder } = useOrderHistoryStore(); // Hook do histórico
 
   const cartTotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
   const deliveryFee = Number(restaurant.deliveryFee || 0);
@@ -152,6 +154,13 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
       );
 
       const createdOrder = response.data.order || response.data;
+
+      addOrder({
+        id: createdOrder.id,
+        restaurantName: restaurant.name,
+        total: finalTotal,
+        date: new Date().toISOString(),
+      });
 
       clearCart();
       setIsOpen(false);
