@@ -1,147 +1,106 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  UtensilsCrossed,
-  FileText,
-  BarChart3,
-  Settings,
-  LogOut,
-  ExternalLink,
-} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  UtensilsCrossed,
+  Settings,
+  BarChart3,
+  LogOut,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
+import { RestaurantSwitcher } from "./restaurant-switcher";
 
 interface SidebarContentProps {
   onLinkClick?: () => void;
 }
 
+const routes = [
+  {
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/admin/dashboard",
+    color: "text-sky-500",
+  },
+  {
+    label: "Pedidos",
+    icon: ShoppingBag,
+    href: "/admin/dashboard",
+    color: "text-violet-500",
+  },
+  {
+    label: "Cardápio",
+    icon: UtensilsCrossed,
+    href: "/admin/menu",
+    color: "text-pink-700",
+  },
+  {
+    label: "Relatórios",
+    icon: BarChart3,
+    href: "/admin/reports",
+    color: "text-orange-700",
+  },
+  {
+    label: "Configurações",
+    icon: Settings,
+    href: "/admin/settings",
+    color: "text-gray-500",
+  },
+];
+
 export function SidebarContent({ onLinkClick }: SidebarContentProps) {
   const pathname = usePathname();
-  const { user, activeRestaurantId } = useAuthStore();
+  const router = useRouter();
+  const { logout } = useAuthStore();
 
-  const isActive = (path: string) => {
-    return pathname === path || pathname.startsWith(path);
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
   };
 
-  const activeRestaurant = user?.restaurants?.find(
-    (r) => r.id === activeRestaurantId
-  );
-  const restaurantSlug = activeRestaurant?.slug;
-
   return (
-    <div className="flex flex-col h-full bg-white text-foreground">
-      {/* Header da Sidebar */}
-      <div className="p-6 mb-2">
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          OxyFood
-        </h2>
-        <p className="text-sm text-muted-foreground">Hamburgueria Artesanal</p>
+    <div className="space-y-4 py-4 flex flex-col h-full bg-white text-gray-900">
+      <div className="px-3 py-2 flex-1">
+        <div className="mb-6 px-2">
+          <RestaurantSwitcher />
+        </div>
+
+        <div className="space-y-1">
+          {routes.map((route) => (
+            <Link
+              key={route.href + route.label}
+              href={route.href}
+              onClick={onLinkClick}
+              className={cn(
+                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-orange-600 hover:bg-orange-50 rounded-lg transition",
+                pathname === route.href ||
+                  (route.href !== "/admin/dashboard" &&
+                    pathname.startsWith(route.href))
+                  ? "text-orange-600 bg-orange-50"
+                  : "text-zinc-600"
+              )}
+            >
+              <div className="flex items-center flex-1">
+                <route.icon className={cn("h-5 w-5 mr-3", route.color)} />
+                {route.label}
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* Links de Navegação */}
-      <nav className="flex-1 px-3 space-y-2">
-        <Button
-          variant={isActive("/admin/dashboard") ? "default" : "ghost"}
-          className={cn(
-            "w-full justify-start font-medium h-12",
-            isActive("/admin/dashboard")
-              ? "bg-orange-500 hover:bg-orange-600 text-white"
-              : "text-foreground hover:text-orange-600"
-          )}
-          asChild
-          onClick={onLinkClick}
-        >
-          <Link href="/admin/dashboard">
-            <UtensilsCrossed className="mr-3 h-5 w-5" />
-            Pedidos
-          </Link>
-        </Button>
-
-        <Button
-          variant={isActive("/admin/menu") ? "default" : "ghost"}
-          className={cn(
-            "w-full justify-start font-medium h-12",
-            isActive("/admin/menu")
-              ? "bg-orange-500 hover:bg-orange-600 text-white"
-              : "text-foreground hover:text-orange-600"
-          )}
-          asChild
-          onClick={onLinkClick}
-        >
-          <Link href="/admin/menu">
-            <FileText className="mr-3 h-5 w-5" />
-            Cardápio
-          </Link>
-        </Button>
-
-        <Button
-          variant={isActive("/admin/reports") ? "default" : "ghost"}
-          className={cn(
-            "w-full justify-start font-medium h-12",
-            isActive("/admin/reports")
-              ? "bg-orange-500 hover:bg-orange-600 text-white"
-              : "text-foreground hover:text-orange-600"
-          )}
-          asChild
-          onClick={onLinkClick}
-        >
-          <Link href="/admin/reports">
-            <BarChart3 className="mr-3 h-5 w-5" />
-            Relatórios
-          </Link>
-        </Button>
-
-        <Button
-          variant={isActive("/admin/settings") ? "default" : "ghost"}
-          className={cn(
-            "w-full justify-start font-medium h-12",
-            isActive("/admin/settings")
-              ? "bg-orange-500 hover:bg-orange-600 text-white"
-              : "text-foreground hover:text-orange-600"
-          )}
-          asChild
-          onClick={onLinkClick}
-        >
-          <Link href="/admin/settings">
-            <Settings className="mr-3 h-5 w-5" />
-            Configurações
-          </Link>
-        </Button>
-
-        {/* --- NOVO BOTÃO: VER LOJA --- */}
-        {restaurantSlug && (
-          <>
-            <div className="my-2 px-2">
-              <div className="h-px bg-gray-100" />
-            </div>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-orange-700 border-orange-200 hover:bg-orange-50 h-12 font-medium"
-              asChild
-            >
-              <a
-                href={`/restaurants/${restaurantSlug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="mr-3 h-5 w-5" />
-                Ver Minha Loja
-              </a>
-            </Button>
-          </>
-        )}
-      </nav>
-
-      {/* Footer da Sidebar */}
-      <div className="p-4 mt-auto border-t border-gray-100">
+      <div className="px-3 py-2 border-t">
         <Button
           variant="ghost"
-          className="w-full justify-start text-muted-foreground hover:text-red-600 hover:bg-red-50 h-12 font-medium"
+          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+          onClick={handleLogout}
         >
-          <LogOut className="mr-3 h-5 w-5" />
+          <LogOut className="h-5 w-5 mr-3" />
           Sair
         </Button>
       </div>
