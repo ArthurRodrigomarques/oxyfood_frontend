@@ -18,22 +18,34 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
-  displayId: string;
+  displayId?: string;
   customerName: string;
   customerPhone: string;
   customerAddress: string;
-  totalPrice: number;
-  deliveryFee: number;
-  paymentMethod: "Pix" | "Dinheiro" | "Cartão";
+
+  // Valores
+  subTotalPrice: number | string;
+  deliveryFee: number | string;
+  totalPrice: number | string;
+  trocoPara?: number | string | null;
+
+  paymentMethod: "Pix" | "Dinheiro" | "Cartão" | string;
   status: OrderStatus;
   createdAt: Date | string;
   items: OrderItem[];
 
-  // Novos campos de Pagamento e Pix
+  // Campos de Pagamento e Pix
   paymentStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED";
   paymentLink?: string | null;
   qrCodeBase64?: string | null;
   mercadoPagoId?: string | null;
+
+  // Informações do Restaurante
+  restaurant?: {
+    name: string;
+    slug: string;
+    phoneNumber: string;
+  };
 }
 
 export interface Option {

@@ -101,7 +101,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
   const [step, setStep] = useState<"cart" | "details">("cart");
 
   const { items, removeItem, clearCart } = useCartStore();
-  const { addOrder } = useOrderHistoryStore(); // Hook do histórico
+  const { addOrder } = useOrderHistoryStore();
 
   const cartTotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
   const deliveryFee = Number(restaurant.deliveryFee || 0);

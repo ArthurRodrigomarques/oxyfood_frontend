@@ -3,7 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -22,6 +28,13 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 interface DashboardMetrics {
   revenue: number;
@@ -41,7 +54,23 @@ interface DashboardMetrics {
     total: number;
     status: string;
   }[];
+  chartData: {
+    date: string;
+    revenue: number;
+    orders: number;
+  }[];
 }
+
+const chartConfig = {
+  revenue: {
+    label: "Receita (R$)",
+    color: "#f97316", // Orange-500
+  },
+  orders: {
+    label: "Pedidos",
+    color: "#3b82f6", // Blue-500
+  },
+} satisfies ChartConfig;
 
 export function ReportsView() {
   const { activeRestaurantId } = useAuthStore();
@@ -104,93 +133,193 @@ export function ReportsView() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight text-gray-800">
-          Relatórios e Análises
+    <div className="space-y-4 p-4 pb-20">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-800">
+          Dashboard
         </h2>
-        <p className="text-muted-foreground">
-          Visão geral dos últimos 30 dias.
+        <p className="text-sm text-muted-foreground">
+          Visão geral do desempenho da sua loja.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Receita Total
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">
               {formatCurrency(metrics.revenue)}
             </div>
-            <p className="text-xs text-muted-foreground">Vendas confirmadas</p>
+            <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pedidos</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Pedidos
+            </CardTitle>
             <ShoppingBag className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.ordersCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de pedidos realizados
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">
+              {metrics.ordersCount}
+            </div>
+            <p className="text-xs text-muted-foreground">Vendas realizadas</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Ticket Médio
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-orange-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">
               {formatCurrency(metrics.averageTicket)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Valor médio por venda
-            </p>
+            <p className="text-xs text-muted-foreground">Média por pedido</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              Clientes Ativos
+            </CardTitle>
             <Users className="h-4 w-4 text-purple-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.activeCustomers}</div>
-            <p className="text-xs text-muted-foreground">
-              Clientes únicos atendidos
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">
+              {metrics.activeCustomers}
+            </div>
+            <p className="text-xs text-muted-foreground">Compraram este mês</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* ABAS DE DETALHES */}
+      {/* ÁREA DE GRÁFICOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Gráfico de Receita */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-base">Faturamento Semanal</CardTitle>
+            <CardDescription className="text-xs">
+              Receita diária dos últimos 7 dias
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <AreaChart
+                accessibilityLayer
+                data={metrics.chartData}
+                margin={{
+                  left: 0,
+                  right: 0,
+                  top: 10,
+                  bottom: 0,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={12}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="line" />}
+                />
+                <Area
+                  dataKey="revenue"
+                  type="monotone"
+                  fill="var(--color-revenue)"
+                  fillOpacity={0.4}
+                  stroke="var(--color-revenue)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Pedidos */}
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-base">Volume de Pedidos</CardTitle>
+            <CardDescription className="text-xs">
+              Quantidade de vendas por dia
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <BarChart
+                accessibilityLayer
+                data={metrics.chartData}
+                margin={{ top: 10 }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  fontSize={12}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
+                <Bar
+                  dataKey="orders"
+                  fill="var(--color-orders)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* TABELAS DETALHADAS */}
       <Tabs defaultValue="sales" className="space-y-4">
-        <TabsList className="bg-gray-100">
-          <TabsTrigger value="sales">Últimas Transações</TabsTrigger>
-          <TabsTrigger value="products">Produtos Mais Vendidos</TabsTrigger>
+        <TabsList className="bg-gray-100 p-1">
+          <TabsTrigger value="sales" className="text-xs sm:text-sm">
+            Últimas Vendas
+          </TabsTrigger>
+          <TabsTrigger value="products" className="text-xs sm:text-sm">
+            Top Produtos
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sales" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Pedidos</CardTitle>
+            <CardHeader className="p-4">
+              <CardTitle className="text-base">Histórico Recente</CardTitle>
+              <CardDescription className="text-xs">
+                Seus últimos pedidos processados
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Qtd. Itens</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px] text-xs">Data</TableHead>
+                    <TableHead className="text-xs">Cliente</TableHead>
+                    <TableHead className="text-xs text-center hidden sm:table-cell">
+                      Itens
+                    </TableHead>
+                    <TableHead className="text-xs">Valor</TableHead>
+                    <TableHead className="text-xs text-right">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -198,7 +327,7 @@ export function ReportsView() {
                     <TableRow>
                       <TableCell
                         colSpan={5}
-                        className="text-center py-8 text-muted-foreground"
+                        className="text-center py-8 text-muted-foreground text-sm"
                       >
                         Nenhuma venda registrada ainda.
                       </TableCell>
@@ -206,27 +335,23 @@ export function ReportsView() {
                   ) : (
                     metrics.recentOrders.map((sale) => (
                       <TableRow key={sale.id}>
-                        <TableCell>
-                          {new Date(sale.date).toLocaleDateString("pt-BR")}{" "}
-                          <span className="text-xs text-gray-400">
-                            {new Date(sale.date).toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
+                        <TableCell className="text-xs">
+                          {new Date(sale.date).toLocaleDateString("pt-BR")}
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium text-xs truncate max-w-[100px] sm:max-w-none">
                           {sale.customer}
                         </TableCell>
-                        <TableCell>{sale.items}</TableCell>
-                        <TableCell className="font-bold">
+                        <TableCell className="text-xs text-center hidden sm:table-cell">
+                          {sale.items}
+                        </TableCell>
+                        <TableCell className="font-bold text-xs">
                           {formatCurrency(sale.total)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Badge
                             className={`${getStatusColor(
                               sale.status
-                            )} border-none`}
+                            )} border-none text-white text-[10px] px-2 py-0.5 h-auto`}
                           >
                             {getStatusLabel(sale.status)}
                           </Badge>
@@ -242,16 +367,21 @@ export function ReportsView() {
 
         <TabsContent value="products" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Top 5 Campeões de Venda</CardTitle>
+            <CardHeader className="p-4">
+              <CardTitle className="text-base">Campeões de Venda</CardTitle>
+              <CardDescription className="text-xs">
+                Produtos com maior saída no período
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Qtd. Vendida</TableHead>
-                    <TableHead className="text-right">Receita Gerada</TableHead>
+                    <TableHead className="text-xs">Produto</TableHead>
+                    <TableHead className="text-xs text-right">Qtd.</TableHead>
+                    <TableHead className="text-xs text-right">
+                      Receita
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -259,7 +389,7 @@ export function ReportsView() {
                     <TableRow>
                       <TableCell
                         colSpan={3}
-                        className="text-center py-8 text-muted-foreground"
+                        className="text-center py-8 text-muted-foreground text-sm"
                       >
                         Nenhum produto vendido ainda.
                       </TableCell>
@@ -267,16 +397,18 @@ export function ReportsView() {
                   ) : (
                     metrics.topProducts.map((product, index) => (
                       <TableRow key={index}>
-                        <TableCell className="font-medium flex items-center gap-2">
-                          <span className="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">
+                        <TableCell className="font-medium flex items-center gap-2 text-xs">
+                          <span className="bg-gray-100 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
                             #{index + 1}
                           </span>
-                          {product.name}
+                          <span className="truncate max-w-[150px] sm:max-w-none">
+                            {product.name}
+                          </span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right text-xs">
                           {product.qty}
                         </TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600">
+                        <TableCell className="text-right font-bold text-emerald-600 text-xs">
                           {formatCurrency(product.revenue)}
                         </TableCell>
                       </TableRow>
