@@ -1,18 +1,28 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { RestaurantHeader } from "@/components/restaurant-header";
 import { CategoryList } from "@/components/category-list";
 import { ProductItem } from "@/components/product-item";
 import { CheckoutSheet } from "@/components/checkout-sheet";
-import { Loader2, Search, X, Megaphone, Star, ImageIcon } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  X,
+  Megaphone,
+  Star,
+  ImageIcon,
+  Receipt,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { RestaurantData } from "@/types/order";
+import { useOrderHistoryStore } from "@/store/order-history-store";
 
 interface RestaurantResponse {
   restaurant: RestaurantData;
@@ -25,6 +35,15 @@ export default function RestaurantPage({
 }) {
   const { slug } = use(params);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Lógica para verificar se há pedidos anteriores
+  const [hasOrders, setHasOrders] = useState(false);
+  const { orders: historyOrders } = useOrderHistoryStore();
+
+  // useEffect para evitar erro de hidratação (Next.js server vs client)
+  useEffect(() => {
+    setHasOrders(historyOrders.length > 0);
+  }, [historyOrders]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["restaurant-public", slug],
@@ -120,26 +139,43 @@ export default function RestaurantPage({
         <RestaurantHeader restaurant={restaurant} />
       </div>
 
-      {/* Busca e Categorias */}
+      {/* Busca e Categorias (STICKY HEADER) */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="container max-w-6xl mx-auto px-4 py-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Buscar produtos..."
-              className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-orange-500 rounded-lg text-base shadow-sm transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-gray-600"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+          <div className="flex gap-2">
+            {/* Campo de Busca */}
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="Buscar produtos..."
+                className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-orange-500 rounded-lg text-base shadow-sm transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-gray-600"
+                  onClick={() => setSearchQuery("")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {hasOrders && (
+              <Link href="/my-orders">
+                <Button
+                  variant="outline"
+                  className="h-12 px-3 sm:px-4 border-orange-200 text-orange-600 hover:bg-orange-50 bg-white shadow-sm flex items-center gap-2"
+                >
+                  <Receipt className="h-5 w-5" />
+                  <span className="hidden sm:inline font-bold">
+                    Meus Pedidos
+                  </span>
+                </Button>
+              </Link>
             )}
           </div>
 

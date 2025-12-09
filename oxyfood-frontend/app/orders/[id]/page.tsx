@@ -77,7 +77,7 @@ export default function OrderStatusPage({
   } = useQuery<Order>({
     queryKey: ["order-details", id],
     queryFn: async () => {
-      const response = await api.get(`/orders/${id}`); // Rota pública de detalhes que criamos
+      const response = await api.get(`/orders/${id}`);
       return response.data.order;
     },
     refetchInterval: (query) => {
@@ -149,9 +149,7 @@ export default function OrderStatusPage({
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] pb-20">
-      {/* HEADER DE NAVEGAÇÃO */}
       <header className="bg-white px-4 py-3 sticky top-0 z-20 shadow-sm border-b flex items-center gap-3">
-        {/* Botão VOLTAR agora leva para /my-orders */}
         <Link href="/my-orders">
           <Button
             variant="ghost"
@@ -180,17 +178,23 @@ export default function OrderStatusPage({
               {elapsedTime} min
             </Badge>
           )}
-          {/* Botão Extra para ir à Loja (Home) */}
-          <Link href="/">
-            <Button size="icon" variant="ghost" className="text-orange-500">
-              <Store className="h-5 w-5" />
-            </Button>
-          </Link>
+
+          {order.restaurant?.slug && (
+            <Link href={`/restaurants/${order.restaurant.slug}`}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-orange-500 hover:bg-orange-50"
+                title="Ir para a Loja"
+              >
+                <Store className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
         </div>
       </header>
 
       <main className="container max-w-2xl mx-auto p-4 space-y-6">
-        {/* ÁREA DE PAGAMENTO PIX */}
         {showPixPayment && (
           <Card className="p-6 border-2 border-green-500 bg-green-50 shadow-md animate-in fade-in slide-in-from-top-4">
             <div className="flex flex-col items-center text-center space-y-4">
@@ -231,7 +235,6 @@ export default function OrderStatusPage({
           </Card>
         )}
 
-        {/* STATUS DO PEDIDO */}
         <Card className="border-none shadow-sm overflow-hidden bg-white">
           {isRejected ? (
             <div className="p-8 text-center bg-red-50">
@@ -287,7 +290,6 @@ export default function OrderStatusPage({
           )}
         </Card>
 
-        {/* DETALHES DE ENTREGA */}
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="p-4 flex items-start gap-3 border-none shadow-sm bg-white">
             <MapPin className="h-5 w-5 text-orange-500 mt-0.5" />
@@ -307,7 +309,6 @@ export default function OrderStatusPage({
           </Card>
         </div>
 
-        {/* RESUMO DO PEDIDO */}
         <Card className="p-5 border-none shadow-sm space-y-4 bg-white">
           <div className="flex items-center gap-2 border-b pb-3">
             <ShoppingBag className="h-5 w-5 text-gray-400" />

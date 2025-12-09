@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 interface StoredOrder {
   id: string;
   restaurantName: string;
+  restaurantSlug: string;
   total: number;
   date: string;
 }

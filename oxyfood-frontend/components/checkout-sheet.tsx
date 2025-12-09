@@ -158,6 +158,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
       addOrder({
         id: createdOrder.id,
         restaurantName: restaurant.name,
+        restaurantSlug: restaurant.slug,
         total: finalTotal,
         date: new Date().toISOString(),
       });

@@ -5,59 +5,81 @@ import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Link from "next/link";
-import { ArrowRight, ShoppingBag, Clock } from "lucide-react";
+import { ArrowRight, ShoppingBag, Clock, ArrowLeft, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function MyOrdersPage() {
   const { orders } = useOrderHistoryStore();
 
+  const lastRestaurantSlug = orders[0]?.restaurantSlug;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b py-6 px-4 shadow-sm">
-        <div className="container max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <ShoppingBag className="h-6 w-6 text-orange-500" />
-            Meus Pedidos
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Histórico das suas últimas compras
-          </p>
+      <div className="bg-white border-b py-4 px-4 shadow-sm sticky top-0 z-10">
+        <div className="container max-w-lg mx-auto flex items-center gap-3">
+          {lastRestaurantSlug ? (
+            <Link href={`/restaurants/${lastRestaurantSlug}`}>
+              <Button variant="ghost" size="icon" className="-ml-2">
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </Button>
+            </Link>
+          ) : (
+            <div className="w-9" />
+          )}
+
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              Meus Pedidos
+            </h1>
+          </div>
+
+          {lastRestaurantSlug && (
+            <Link href={`/restaurants/${lastRestaurantSlug}`}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+              >
+                <Store className="h-4 w-4" />
+                <span className="hidden sm:inline">Cardápio</span>
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
+      {/* LISTA DE PEDIDOS */}
       <div className="container max-w-lg mx-auto p-4 space-y-4">
         {orders.length === 0 ? (
-          <div className="text-center py-16 flex flex-col items-center">
-            <div className="bg-gray-200 p-6 rounded-full mb-4">
+          <div className="text-center py-16 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
+            <div className="bg-gray-100 p-6 rounded-full mb-4">
               <ShoppingBag className="h-10 w-10 text-gray-400" />
             </div>
             <h3 className="text-lg font-bold text-gray-700">
               Nenhum pedido ainda
             </h3>
-            <p className="text-gray-500 max-w-[250px] mt-2 mb-6">
-              Seus pedidos realizados aparecerão aqui para você acompanhar.
+            <p className="text-gray-500 max-w-[250px] mt-2 mb-6 text-sm">
+              Seus pedidos realizados aparecerão aqui.
             </p>
-            <Button asChild>
-              <Link href="/">Fazer um Pedido</Link>
-            </Button>
           </div>
         ) : (
           orders.map((order) => (
             <Card
               key={order.id}
-              className="overflow-hidden hover:shadow-md transition-shadow"
+              className="overflow-hidden hover:shadow-md transition-all border-l-4 border-l-orange-500"
             >
               <CardContent className="p-0">
                 <Link
                   href={`/orders/${order.id}`}
-                  className="flex items-center p-4"
+                  className="flex items-center p-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0 mr-4">
+                  <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0 mr-4 border border-orange-200">
                     <ShoppingBag className="h-6 w-6 text-orange-600" />
                   </div>
+
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 truncate">
+                    <h3 className="font-bold text-gray-900 truncate text-base">
                       {order.restaurantName}
                     </h3>
                     <div className="flex items-center text-xs text-gray-500 mt-1">
@@ -67,12 +89,13 @@ export default function MyOrdersPage() {
                       })}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-gray-900">
+
+                  <div className="text-right pl-2">
+                    <div className="font-bold text-gray-900 text-sm">
                       {formatCurrency(order.total)}
                     </div>
-                    <div className="text-xs text-orange-600 font-medium flex items-center justify-end mt-1">
-                      Ver detalhes <ArrowRight className="h-3 w-3 ml-1" />
+                    <div className="text-[10px] uppercase font-bold text-orange-600 flex items-center justify-end mt-1 gap-1">
+                      Ver <ArrowRight className="h-3 w-3" />
                     </div>
                   </div>
                 </Link>
