@@ -15,11 +15,13 @@ import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { io } from "socket.io-client";
 
+// --- Interfaces locais para tipar a resposta da API ---
 interface ApiOrderItem {
   id: string;
   quantity: number;
+  unitPrice: string;
   optionsDescription: string | null;
-  product: { name: string } | null;
+  product: { name: string; imageUrl?: string | null } | null;
 }
 
 interface ApiOrder {
@@ -28,6 +30,7 @@ interface ApiOrder {
   customerPhone: string;
   customerAddress: string;
   totalPrice: string;
+  deliveryFee: string;
   paymentMethod: string;
   status: "PENDING" | "PREPARING" | "OUT" | "COMPLETED" | "REJECTED";
   createdAt: string;
@@ -48,7 +51,6 @@ interface RestaurantDetails {
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { activeRestaurantId, user } = useAuthStore();
-
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -111,14 +113,19 @@ export default function DashboardPage() {
         customerPhone: order.customerPhone,
         customerAddress: order.customerAddress,
         totalPrice: Number(order.totalPrice),
+        deliveryFee: Number(order.deliveryFee || 0), // Correção: Mapeando deliveryFee
         paymentMethod: order.paymentMethod as "Pix" | "Dinheiro" | "Cartão",
         status: order.status,
         createdAt: new Date(order.createdAt),
         items: order.orderItems.map((item) => ({
           id: item.id,
           quantity: item.quantity,
-          name: item.product?.name || "Produto Indisponível",
-          extras: item.optionsDescription || undefined,
+          unitPrice: Number(item.unitPrice || 0),
+          optionsDescription: item.optionsDescription || undefined,
+          product: {
+            name: item.product?.name || "Produto Indisponível",
+            imageUrl: item.product?.imageUrl || null,
+          },
         })),
       })) as Order[];
     },
@@ -232,7 +239,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+      <header className="bg-white border-b px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 z-20 shadow-sm">
         <div className="flex items-center gap-4">
           <MobileSidebar />
           <div>
@@ -248,41 +255,42 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-6 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-3 justify-end w-full sm:w-auto">
           <div
-            className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${
               isStoreOpen
                 ? "bg-green-50 border-green-200"
                 : "bg-red-50 border-red-200"
             }`}
           >
             <span
-              className={`text-xs sm:text-sm font-bold hidden sm:inline ${
+              className={`text-xs font-bold ${
                 isStoreOpen ? "text-green-700" : "text-red-700"
               }`}
             >
-              {isStoreOpen ? "Loja Aberta" : "Loja Fechada"}
+              {isStoreOpen ? "ABERTO" : "FECHADO"}
             </span>
             <Switch
               checked={isStoreOpen}
               onCheckedChange={(checked) => toggleStoreStatus(checked)}
               disabled={isToggling}
-              className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-red-400"
+              className="scale-75 data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-red-400"
             />
           </div>
 
-          <div className="relative hidden md:block w-64">
+          <div className="relative hidden md:block w-48 lg:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Buscar pedidos..."
-              className="pl-9 bg-gray-50"
+              className="pl-9 h-9 bg-gray-50 text-sm"
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <Button
               variant="ghost"
               size="icon"
+              className="h-9 w-9"
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ["orders"] });
                 queryClient.invalidateQueries({
@@ -290,10 +298,14 @@ export default function DashboardPage() {
                 });
               }}
             >
-              <RefreshCw className="h-5 w-5 text-gray-500" />
+              <RefreshCw className="h-4 w-4 text-gray-500" />
             </Button>
 
-            <Button size="icon" variant="ghost" className="relative shrink-0">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="relative shrink-0 h-9 w-9"
+            >
               <Bell className="h-5 w-5 text-gray-600" />
               {pendingOrders.length > 0 && (
                 <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />
@@ -303,8 +315,9 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto md:overflow-y-hidden md:overflow-x-auto bg-gray-50/50">
-        <div className="flex gap-4 sm:gap-6 h-auto md:h-full flex-col md:flex-row min-w-0 md:min-w-[1000px]">
+      {/* Conteúdo Kanban */}
+      <div className="flex-1 p-4 overflow-y-auto md:overflow-hidden bg-gray-50/50">
+        <div className="flex flex-col md:flex-row gap-4 h-auto md:h-full md:overflow-x-auto pb-4 md:pb-0 min-w-0">
           <OrderColumn
             title="NOVOS PEDIDOS"
             colorClass="bg-blue-500"

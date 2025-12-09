@@ -1,19 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  ShoppingBag,
   UtensilsCrossed,
   Settings,
   BarChart3,
   LogOut,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
-import { useRouter } from "next/navigation";
 import { RestaurantSwitcher } from "./restaurant-switcher";
 
 interface SidebarContentProps {
@@ -22,16 +21,10 @@ interface SidebarContentProps {
 
 const routes = [
   {
-    label: "Dashboard",
+    label: "Pedidos",
     icon: LayoutDashboard,
     href: "/admin/dashboard",
     color: "text-sky-500",
-  },
-  {
-    label: "Pedidos",
-    icon: ShoppingBag,
-    href: "/admin/dashboard",
-    color: "text-violet-500",
   },
   {
     label: "Cardápio",
@@ -56,32 +49,40 @@ const routes = [
 export function SidebarContent({ onLinkClick }: SidebarContentProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const { logout, user, activeRestaurantId } = useAuthStore();
 
   const handleLogout = () => {
     logout();
     router.push("/login");
   };
 
+  // Encontrar o slug do restaurante ativo para o link público
+  const activeRestaurant = user?.restaurants?.find(
+    (r) => r.id === activeRestaurantId
+  );
+  const publicStoreUrl = activeRestaurant
+    ? `/restaurants/${activeRestaurant.slug}`
+    : null;
+
   return (
-    <div className="space-y-4 py-4 flex flex-col h-full bg-white text-gray-900">
-      <div className="px-3 py-2 flex-1">
+    <div className="space-y-4 py-4 flex flex-col h-full bg-white text-gray-900 border-r">
+      <div className="px-3 py-2 flex-1 flex flex-col">
+        {/* Switcher de Restaurantes */}
         <div className="mb-6 px-2">
           <RestaurantSwitcher />
         </div>
 
-        <div className="space-y-1">
+        {/* Menu Principal */}
+        <div className="space-y-1 flex-1">
           {routes.map((route) => (
             <Link
-              key={route.href + route.label}
+              key={route.href}
               href={route.href}
               onClick={onLinkClick}
               className={cn(
                 "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-orange-600 hover:bg-orange-50 rounded-lg transition",
-                pathname === route.href ||
-                  (route.href !== "/admin/dashboard" &&
-                    pathname.startsWith(route.href))
-                  ? "text-orange-600 bg-orange-50"
+                pathname === route.href
+                  ? "text-orange-600 bg-orange-50 font-bold"
                   : "text-zinc-600"
               )}
             >
@@ -92,16 +93,36 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
             </Link>
           ))}
         </div>
+
+        {/* Botão Ver Loja (se houver restaurante ativo) */}
+        {publicStoreUrl && (
+          <div className="px-2 mt-auto mb-4">
+            <Link
+              href={publicStoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver Minha Loja
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
-      <div className="px-3 py-2 border-t">
+      {/* Botão de Sair */}
+      <div className="px-3 py-2 border-t bg-gray-50/50">
         <Button
           variant="ghost"
           className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
           onClick={handleLogout}
         >
           <LogOut className="h-5 w-5 mr-3" />
-          Sair
+          Sair do Sistema
         </Button>
       </div>
     </div>

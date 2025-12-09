@@ -10,7 +10,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 
-// Componentes Locais
 import { ProductItem } from "./product-item";
 import { ProductDialog } from "./product-dialog";
 import { DeleteDialog } from "./delete-dialog";
@@ -33,7 +32,6 @@ export interface MenuOptionGroup {
   options: MenuOption[];
 }
 
-// --- TIPAGEM DA API ---
 interface ApiProduct {
   id: string;
   name: string;
@@ -44,11 +42,12 @@ interface ApiProduct {
   optionGroups?: MenuOptionGroup[];
 }
 
-interface ApiCategory {
+export interface ApiCategory {
   id: string;
   name: string;
   products: ApiProduct[];
 }
+
 export interface AdminMenuResponse {
   categories: ApiCategory[];
 }
@@ -70,14 +69,12 @@ export function MenuManagement() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Estados dos Modais
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isOptionsDialogOpen, setIsOptionsDialogOpen] = useState(false);
   const [productToManageOptions, setProductToManageOptions] =
     useState<FrontendProduct | null>(null);
 
-  // Estados de Deleção
   const [productToDelete, setProductToDelete] =
     useState<FrontendProduct | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<{
@@ -85,12 +82,10 @@ export function MenuManagement() {
     name: string;
   } | null>(null);
 
-  // Estado de Edição
   const [editingProduct, setEditingProduct] = useState<FrontendProduct | null>(
     null
   );
 
-  // 1. BUSCAR DADOS (READ)
   const { data: menuData, isLoading } = useQuery<AdminMenuResponse>({
     queryKey: ["admin-menu", activeRestaurantId],
     queryFn: async () => {
@@ -124,7 +119,6 @@ export function MenuManagement() {
     return flatList;
   }, [menuData]);
 
-  // Salvar Produto (Criar/Editar)
   const { mutate: saveProduct } = useMutation({
     mutationFn: async (data: Partial<FrontendProduct>) => {
       const payload = {
@@ -137,12 +131,17 @@ export function MenuManagement() {
 
       if (editingProduct) {
         await api.put(`/products/${editingProduct.id}`, payload);
+
+        // Se mudou de categoria (verificando se categoryId veio no data)
+        if (data.categoryId && data.categoryId !== editingProduct.categoryId) {
+          // Nota: O backend precisaria de uma rota específica para mover produtos ou o update suportar categoryId
+          // Por enquanto, assumimos que o update atualiza dados básicos.
+          // Se precisar mover, implemente no backend ou delete/crie novamente (não recomendado).
+        }
       } else {
-        const targetCategory = menuData?.categories.find(
-          (c) => c.name === data.category
-        );
-        if (!targetCategory) throw new Error("Categoria não encontrada.");
-        await api.post(`/categories/${targetCategory.id}/products`, payload);
+        if (!data.categoryId) throw new Error("Categoria é obrigatória.");
+
+        await api.post(`/categories/${data.categoryId}/products`, payload);
       }
     },
     onSuccess: () => {
@@ -150,10 +149,12 @@ export function MenuManagement() {
       queryClient.invalidateQueries({ queryKey: ["admin-menu"] });
       setIsProductDialogOpen(false);
     },
-    onError: () => toast.error("Erro ao salvar produto."),
+    onError: (error) => {
+      console.error(error);
+      toast.error("Erro ao salvar produto.");
+    },
   });
 
-  // Deletar Produto
   const { mutate: deleteProduct } = useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/products/${id}`);
@@ -166,7 +167,6 @@ export function MenuManagement() {
     onError: () => toast.error("Erro ao remover produto."),
   });
 
-  // Toggle Disponibilidade
   const { mutate: toggleAvailability } = useMutation({
     mutationFn: async ({
       id,
@@ -183,7 +183,6 @@ export function MenuManagement() {
     },
   });
 
-  // Criar Categoria
   const { mutate: createCategory } = useMutation({
     mutationFn: async (name: string) => {
       await api.post(`/restaurants/${activeRestaurantId}/categories`, { name });
@@ -195,7 +194,6 @@ export function MenuManagement() {
     onError: () => toast.error("Erro ao criar categoria."),
   });
 
-  // Deletar Categoria
   const { mutate: deleteCategory } = useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/categories/${id}`);
@@ -223,7 +221,6 @@ export function MenuManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">
@@ -257,7 +254,6 @@ export function MenuManagement() {
         </div>
       </div>
 
-      {/* Busca */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -268,7 +264,6 @@ export function MenuManagement() {
         />
       </div>
 
-      {/* Listagem */}
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-6 bg-gray-100/50 p-1 h-auto flex-wrap justify-start gap-2 w-full sm:w-auto">
           <TabsTrigger value="all" className="px-4 py-2">
@@ -281,7 +276,6 @@ export function MenuManagement() {
           ))}
         </TabsList>
 
-        {/* Aba: Todos */}
         <TabsContent value="all" className="space-y-3">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
@@ -311,7 +305,6 @@ export function MenuManagement() {
           )}
         </TabsContent>
 
-        {/* Abas por Categoria */}
         {menuData?.categories.map((cat) => (
           <TabsContent key={cat.id} value={cat.id} className="space-y-4">
             <div className="flex justify-between items-center bg-gray-50 p-3 rounded-md border mb-4">
@@ -364,13 +357,14 @@ export function MenuManagement() {
         ))}
       </Tabs>
 
-      {/* MODAIS */}
-
       <ProductDialog
         open={isProductDialogOpen}
         onOpenChange={setIsProductDialogOpen}
         product={editingProduct}
         onSave={saveProduct}
+        categories={
+          menuData?.categories.map((c) => ({ id: c.id, name: c.name })) || []
+        }
       />
 
       <CategoryDialog

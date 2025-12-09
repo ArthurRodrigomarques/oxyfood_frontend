@@ -27,11 +27,17 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
 
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 interface ProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: FrontendProduct | null;
   onSave: (data: Partial<FrontendProduct>) => void;
+  categories: CategoryOption[];
 }
 
 export function ProductDialog({
@@ -39,15 +45,16 @@ export function ProductDialog({
   onOpenChange,
   product,
   onSave,
+  categories,
 }: ProductDialogProps) {
   const { register, handleSubmit, reset, setValue, control } =
     useForm<Partial<FrontendProduct>>();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const imageUrl = useWatch({ control, name: "image" });
+  const selectedCategoryId = useWatch({ control, name: "categoryId" });
 
   const { startUpload } = useUploadThing("imageUploader", {
     onUploadError: (error) => {
@@ -66,7 +73,7 @@ export function ProductDialog({
           name: product.name,
           description: product.description || "",
           price: Number(product.price),
-          category: product.category,
+          categoryId: product.categoryId,
           image: product.image || "",
           available: product.available,
         });
@@ -75,25 +82,29 @@ export function ProductDialog({
           name: "",
           description: "",
           price: 0,
-          category: "Lanches",
+          categoryId: categories.length > 0 ? categories[0].id : "",
           image: "",
           available: true,
         });
       }
     }
-  }, [product, open, reset]);
+  }, [product, open, reset, categories]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setSelectedFile(file);
-
     const localPreviewUrl = URL.createObjectURL(file);
     setValue("image", localPreviewUrl);
   };
 
   const onSubmit = async (data: Partial<FrontendProduct>) => {
+    if (!data.categoryId) {
+      toast.error("Selecione uma categoria.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -101,13 +112,13 @@ export function ProductDialog({
 
       if (selectedFile) {
         const uploadRes = await startUpload([selectedFile]);
-
         if (uploadRes && uploadRes[0]) {
           finalImageUrl = uploadRes[0].url;
         } else {
           throw new Error("Falha ao receber URL da imagem.");
         }
       }
+
       const formattedData = {
         ...data,
         image: finalImageUrl,
@@ -137,14 +148,12 @@ export function ProductDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-6">
-          {/* Área de Imagem */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
               Imagem do Produto
             </Label>
 
             <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:bg-muted/10 transition-colors cursor-pointer bg-gray-50 relative group">
-              {/* Loader durante o envio final */}
               {isSubmitting && (
                 <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg">
                   <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
@@ -196,7 +205,6 @@ export function ProductDialog({
                 </>
               )}
 
-              {/* Input de arquivo */}
               <input
                 type="file"
                 accept="image/*"
@@ -207,7 +215,6 @@ export function ProductDialog({
             </div>
           </div>
 
-          {/* Resto do Formulário (Nome, Descrição, etc) */}
           <div className="space-y-2">
             <Label htmlFor="name">Nome do Produto *</Label>
             <Input
@@ -243,17 +250,24 @@ export function ProductDialog({
             <div className="space-y-2">
               <Label htmlFor="category">Categoria *</Label>
               <Select
-                onValueChange={(val) => setValue("category", val)}
-                defaultValue={product?.category || "Lanches"}
+                value={selectedCategoryId}
+                onValueChange={(val) => setValue("categoryId", val)}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Lanches">🍔 Lanches</SelectItem>
-                  <SelectItem value="Pizzas">🍕 Pizzas</SelectItem>
-                  <SelectItem value="Bebidas">🥤 Bebidas</SelectItem>
-                  <SelectItem value="Sobremesas">🍰 Sobremesas</SelectItem>
+                  {categories.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      Nenhuma categoria criada
+                    </div>
+                  ) : (
+                    categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
