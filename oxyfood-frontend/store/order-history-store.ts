@@ -1,3 +1,5 @@
+"use client";
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -12,6 +14,7 @@ interface StoredOrder {
 interface OrderHistoryState {
   orders: StoredOrder[];
   addOrder: (order: StoredOrder) => void;
+  clearHistory: () => void;
 }
 
 export const useOrderHistoryStore = create<OrderHistoryState>()(
@@ -20,9 +23,15 @@ export const useOrderHistoryStore = create<OrderHistoryState>()(
       orders: [],
       addOrder: (order) =>
         set((state) => {
-          const filtered = state.orders.filter((o) => o.id !== order.id);
+          const currentOrders = Array.isArray(state.orders) ? state.orders : [];
+
+          const filtered = currentOrders.filter(
+            (o) => o && o.id && o.id !== order.id
+          );
+
           return { orders: [order, ...filtered] };
         }),
+      clearHistory: () => set({ orders: [] }),
     }),
     {
       name: "oxyfood-orders",

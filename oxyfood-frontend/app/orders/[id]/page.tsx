@@ -315,23 +315,44 @@ export default function OrderStatusPage({
             <h3 className="font-bold text-gray-800">Resumo do Pedido</h3>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {order.items?.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <div className="flex gap-2">
-                  <span className="font-bold text-gray-900 min-w-[20px]">
-                    {item.quantity}x
-                  </span>
+              <div key={i} className="flex justify-between items-start gap-3">
+                <div className="flex gap-3">
+                  {/* FOTO DO PRODUTO */}
+                  <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                    {item.product?.imageUrl ? (
+                      <Image
+                        src={item.product.imageUrl}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full w-full text-gray-300">
+                        <ShoppingBag className="h-5 w-5" />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex flex-col">
-                    <span className="text-gray-700">{item.product?.name}</span>
+                    <div className="flex gap-1.5 items-center">
+                      <span className="font-bold text-gray-900 text-sm bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                        {item.quantity}x
+                      </span>
+                      <span className="text-gray-800 font-medium text-sm line-clamp-2">
+                        {item.product?.name}
+                      </span>
+                    </div>
                     {item.optionsDescription && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-500 mt-0.5 leading-tight">
                         {item.optionsDescription}
                       </span>
                     )}
                   </div>
                 </div>
-                <span className="font-medium text-gray-900">
+                <span className="font-semibold text-gray-900 text-sm whitespace-nowrap">
                   {formatCurrency(Number(item.unitPrice) * item.quantity)}
                 </span>
               </div>

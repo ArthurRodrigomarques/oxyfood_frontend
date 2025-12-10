@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
 import {
   Loader2,
   ShoppingCart,
@@ -138,13 +139,27 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
     try {
       setIsSubmitting(true);
 
+      let trocoPara: number | undefined = undefined;
+      if (data.paymentMethod === "Dinheiro" && data.trocoPara) {
+        const parsed = Number(data.trocoPara);
+        if (!isNaN(parsed) && parsed > 0) {
+          trocoPara = parsed;
+        }
+      }
+
+      // --- PROTEÇÃO CONTRA ERRO "READING ID OF NULL" ---
+      const validItems = items.filter(
+        (item) => item.product && item.product.id
+      );
+
       const payload = {
         ...data,
-        trocoPara: data.trocoPara ? Number(data.trocoPara) : undefined,
-        items: items.map((item) => ({
-          productId: item.product.id,
+        trocoPara,
+        items: validItems.map((item) => ({
+          productId: item.product.id, // O filtro acima garante que isso existe
           quantity: item.quantity,
-          options: item.selectedOptions.map((opt) => opt.id),
+          options: item.selectedOptions?.map((opt) => opt.id) || [], // Proteção se options for null
+          observation: item.notes,
         })),
       };
 
@@ -155,6 +170,34 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
       const createdOrder = response.data.order || response.data;
 
+      // --- PROTEÇÃO CONTRA RESPOSTA VAZIA ---
+      if (!createdOrder || !createdOrder.id) {
+        throw new Error("Erro: O servidor não retornou os dados do pedido.");
+      }
+
+      if (data.paymentMethod === "CartaoOnline") {
+        if (createdOrder.paymentLink) {
+          // Salva no histórico local antes de redirecionar
+          addOrder({
+            id: createdOrder.id,
+            restaurantName: restaurant.name,
+            restaurantSlug: restaurant.slug,
+            total: finalTotal,
+            date: new Date().toISOString(),
+          });
+          clearCart();
+          toast.loading("Redirecionando para o Mercado Pago...");
+
+          // Redirecionamento forçado
+          window.location.href = createdOrder.paymentLink;
+          return;
+        } else {
+          toast.error("Erro: Link de pagamento não gerado.");
+          return;
+        }
+      }
+
+      // Fluxo Normal (Pix / Dinheiro / Cartão na Entrega)
       addOrder({
         id: createdOrder.id,
         restaurantName: restaurant.name,
@@ -162,39 +205,25 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
         total: finalTotal,
         date: new Date().toISOString(),
       });
-
       clearCart();
       setIsOpen(false);
       setStep("cart");
       reset();
 
-      if (data.paymentMethod === "CartaoOnline") {
-        if (createdOrder.paymentLink) {
-          toast.loading("Redirecionando para pagamento seguro...");
-          window.location.href = createdOrder.paymentLink;
-          return;
-        } else {
-          toast.error("Erro ao gerar link de pagamento.", {
-            description: "Tente novamente ou escolha outra forma de pagamento.",
-          });
-          router.push(`/orders/${createdOrder.id}`);
-          return;
-        }
-      }
-
       if (data.paymentMethod === "Pix") {
-        toast.success("Pedido criado! Pague com Pix agora.");
-        router.push(`/orders/${createdOrder.id}`);
-        return;
+        toast.success("Pedido criado! Escaneie o QR Code.");
+      } else {
+        toast.success("Pedido enviado com sucesso!");
       }
 
-      toast.success("Pedido enviado!", {
-        description: "Aguarde a confirmação do restaurante.",
-      });
       router.push(`/orders/${createdOrder.id}`);
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao enviar pedido.");
+      let msg = "Erro ao processar pedido.";
+      if (error instanceof AxiosError) {
+        msg = error.response?.data?.message || msg;
+      }
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

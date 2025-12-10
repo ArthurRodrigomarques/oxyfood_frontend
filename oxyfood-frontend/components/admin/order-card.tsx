@@ -27,6 +27,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import Image from "next/image";
 
 interface OrderCardProps {
   order: Order;
@@ -39,7 +40,9 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
     {
       Pix: QrCode,
       Cartão: CreditCard,
+      "Cartão (Online)": CreditCard,
       Cartao: CreditCard,
+      CartaoOnline: CreditCard,
       Dinheiro: Banknote,
     }[order.paymentMethod] || Banknote;
 
@@ -126,7 +129,6 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* BOTÃO IMPRIMIR */}
           <Button
             size="icon"
             variant="ghost"
@@ -160,22 +162,41 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
         <Separator />
 
         {/* Itens */}
-        <div className="space-y-2 flex-1">
+        <div className="space-y-3 flex-1">
           {order.items.map((item, i) => (
-            <div key={i} className="text-sm">
-              <div className="flex gap-2">
-                <span className="font-bold text-gray-900 bg-gray-100 px-1.5 rounded h-fit text-xs border border-gray-200">
-                  {item.quantity}x
-                </span>
-                <span className="text-gray-700 font-medium leading-tight">
-                  {item.name}
-                </span>
+            <div key={i} className="flex gap-2 text-sm">
+              {/* Miniatura da Foto */}
+              <div className="h-10 w-10 shrink-0 bg-gray-100 rounded-md overflow-hidden relative border border-gray-200">
+                {item.product?.imageUrl ? (
+                  <Image
+                    src={item.product.imageUrl}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="40px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-[10px]">
+                    IMG
+                  </div>
+                )}
               </div>
-              {item.extras && (
-                <p className="text-xs text-muted-foreground pl-7 mt-0.5 italic">
-                  + {item.extras}
-                </p>
-              )}
+
+              <div className="flex-1 min-w-0">
+                <div className="flex gap-1.5 leading-tight">
+                  <span className="font-bold text-gray-900 text-xs mt-0.5">
+                    {item.quantity}x
+                  </span>
+                  <span className="text-gray-700 font-medium">
+                    {item.product?.name}
+                  </span>
+                </div>
+                {item.optionsDescription && (
+                  <p className="text-xs text-orange-600 mt-0.5 italic leading-tight">
+                    {item.optionsDescription}
+                  </p>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -188,9 +209,15 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
               <span>{order.paymentMethod}</span>
             </div>
             <span className="font-bold text-base text-gray-900">
-              {formatCurrency(order.totalPrice)}
+              {formatCurrency(Number(order.totalPrice))}
             </span>
           </div>
+          {/* Mostra troco se tiver */}
+          {order.trocoPara && (
+            <div className="text-[10px] text-muted-foreground text-right mt-1">
+              Troco para {formatCurrency(Number(order.trocoPara))}
+            </div>
+          )}
         </div>
       </CardContent>
 
