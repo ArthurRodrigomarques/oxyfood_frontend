@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight, Store } from "lucide-react"; // Troquei ExternalLink por Store
 
 export function Hero() {
   return (
@@ -29,32 +29,32 @@ export function Hero() {
             </Link>
           </Button>
 
-          {/* Botão Secundário - Ver Demo */}
+          {/* Botão Secundário - Alterado para Login ou Painel */}
           <Button
             size="lg"
             variant="outline"
             className="text-lg h-14 px-8 rounded-full border-2 hover:bg-gray-50"
             asChild
           >
-            <Link href="/restaurants/hamburgueria-do-ze" target="_blank">
-              Ver Loja Demo <ExternalLink className="ml-2 h-5 w-5" />
+            <Link href="/login">
+              Já tenho conta <Store className="ml-2 h-5 w-5" />
             </Link>
           </Button>
         </div>
 
-        {/* Prova Social / Estatísticas */}
+        {/* Prova Social / Estatísticas (Pode manter estático por enquanto ou remover) */}
         <div className="pt-12 grid grid-cols-3 gap-4 md:gap-12 border-t mt-12 max-w-3xl mx-auto">
           <div>
-            <p className="text-3xl font-bold text-gray-900">+1</p>
+            <p className="text-3xl font-bold text-gray-900">+100</p>
             <p className="text-sm text-muted-foreground">Restaurantes</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-gray-900">1k</p>
+            <p className="text-3xl font-bold text-gray-900">5k</p>
             <p className="text-sm text-muted-foreground">Pedidos/mês</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-gray-900">99.9%</p>
-            <p className="text-sm text-muted-foreground">perfeição</p>
+            <p className="text-3xl font-bold text-gray-900">4.9</p>
+            <p className="text-sm text-muted-foreground">Avaliação média</p>
           </div>
         </div>
       </div>

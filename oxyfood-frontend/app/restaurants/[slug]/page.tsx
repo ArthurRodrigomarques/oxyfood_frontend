@@ -112,7 +112,7 @@ export default function RestaurantPage({
 
       {/* ÁREA DO BANNER DE CAPA */}
       <div className="relative w-full h-48 sm:h-64 md:h-80 bg-gray-200">
-        {restaurant.bannerUrl && !restaurant.bannerUrl.includes("imgur.com") ? (
+        {restaurant.bannerUrl ? (
           <Image
             src={restaurant.bannerUrl}
             alt="Banner da Loja"

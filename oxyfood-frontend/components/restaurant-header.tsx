@@ -21,7 +21,7 @@ export function RestaurantHeader({ restaurant }: RestaurantHeaderProps) {
 
           {/* LOGO DA LOJA */}
           <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl overflow-hidden border-2 border-white shadow-md bg-gray-50">
-            {restaurant.logoUrl && !restaurant.logoUrl.includes("imgur.com") ? (
+            {restaurant.logoUrl ? (
               <Image
                 src={restaurant.logoUrl}
                 alt={restaurant.name}
