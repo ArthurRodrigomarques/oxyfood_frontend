@@ -36,11 +36,9 @@ export default function RestaurantPage({
   const { slug } = use(params);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Lógica para verificar se há pedidos anteriores
   const [hasOrders, setHasOrders] = useState(false);
   const { orders: historyOrders } = useOrderHistoryStore();
 
-  // useEffect para evitar erro de hidratação (Next.js server vs client)
   useEffect(() => {
     setHasOrders(historyOrders.length > 0);
   }, [historyOrders]);
@@ -139,11 +137,10 @@ export default function RestaurantPage({
         <RestaurantHeader restaurant={restaurant} />
       </div>
 
-      {/* Busca e Categorias (STICKY HEADER) */}
+      {/* Busca e Categorias */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="container max-w-6xl mx-auto px-4 py-4 space-y-4">
           <div className="flex gap-2">
-            {/* Campo de Busca */}
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
@@ -205,6 +202,7 @@ export default function RestaurantPage({
                       alt={product.name}
                       fill
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      sizes="(max-width: 768px) 100vw, 50vw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   </div>
