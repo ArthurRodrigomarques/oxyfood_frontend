@@ -16,6 +16,14 @@ export interface OrderItem {
   };
 }
 
+export interface OpeningHour {
+  id: string;
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  restaurantId?: string;
+}
+
 export interface Order {
   id: string;
   displayId?: string;
@@ -97,4 +105,5 @@ export interface RestaurantData {
   description: string | null;
   rating?: number | null;
   categories: Category[];
+  openingHours?: OpeningHour[];
 }

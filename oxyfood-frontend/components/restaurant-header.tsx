@@ -5,12 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Menu, Store } from "lucide-react";
 import { CheckoutSheet } from "@/components/checkout-sheet";
 import Image from "next/image";
+import { checkIsOpen } from "@/lib/utils";
 
 interface RestaurantHeaderProps {
   restaurant: RestaurantData;
 }
 
 export function RestaurantHeader({ restaurant }: RestaurantHeaderProps) {
+  const isOpenBySchedule = restaurant.openingHours
+    ? checkIsOpen(restaurant.openingHours)
+    : true;
+
+  const isReallyOpen = restaurant.isOpen && isOpenBySchedule;
+
   return (
     <header className="p-4 shadow-sm bg-white border-b relative">
       <div className="container mx-auto flex justify-between items-center max-w-6xl">
@@ -44,17 +51,17 @@ export function RestaurantHeader({ restaurant }: RestaurantHeaderProps) {
               <div className="flex items-center gap-1.5">
                 <span
                   className={`inline-block w-2.5 h-2.5 rounded-full animate-pulse ${
-                    restaurant.isOpen ? "bg-green-500" : "bg-red-500"
+                    isReallyOpen ? "bg-green-500" : "bg-red-500"
                   }`}
                 />
                 <span
                   className={
-                    restaurant.isOpen
+                    isReallyOpen
                       ? "text-green-700 font-medium"
                       : "text-red-700 font-medium"
                   }
                 >
-                  {restaurant.isOpen ? "Aberto agora" : "Fechado"}
+                  {isReallyOpen ? "Aberto agora" : "Fechado"}
                 </span>
               </div>
               <span className="hidden sm:inline text-gray-300">|</span>

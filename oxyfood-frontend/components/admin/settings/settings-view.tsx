@@ -5,6 +5,7 @@ import { StoreSettings } from "./store-settings";
 import { DeliverySettings } from "./delivery-settings";
 import { PaymentSettings } from "./payment-settings";
 import { NotificationSettings } from "./notification-settings";
+import { OpeningHoursSettings } from "./opening-hours-settings";
 
 export function SettingsView() {
   return (
@@ -20,6 +21,7 @@ export function SettingsView() {
       <Tabs defaultValue="store" className="space-y-6">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="store">Loja</TabsTrigger>
+          <TabsTrigger value="schedule">Horários</TabsTrigger>
           <TabsTrigger value="delivery">Entrega</TabsTrigger>
           <TabsTrigger value="payment">Pagamento</TabsTrigger>
           <TabsTrigger value="notifications">Notificações</TabsTrigger>
@@ -28,6 +30,10 @@ export function SettingsView() {
         {/* Conteúdo da Aba 'Loja' */}
         <TabsContent value="store">
           <StoreSettings />
+        </TabsContent>
+
+        <TabsContent value="schedule">
+          <OpeningHoursSettings />
         </TabsContent>
 
         {/* Conteúdo da Aba 'Entrega' */}
