@@ -118,7 +118,6 @@ export function StoreSettings() {
       toast.success("Loja atualizada com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["restaurant-settings"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-public"] });
-      // Reset para limpar o estado dirty com os novos valores
       reset(undefined, { keepValues: true });
     },
     onError: () => {

@@ -66,7 +66,6 @@ export function ImageUpload({
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
-        {/* LOADER DE UPLOAD */}
         {isUploading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
             <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
@@ -102,7 +101,6 @@ export function ImageUpload({
             </div>
           </>
         ) : (
-          /* STATE VAZIO */
           <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
             <div className="bg-white p-3 rounded-full shadow-sm mb-2">
               {aspectRatio === "wide" ? (

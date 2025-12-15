@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import Image from "next/image";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Order } from "@/types/order";
+import { io } from "socket.io-client";
 
 const steps = [
   {
@@ -69,6 +70,7 @@ export default function OrderStatusPage({
 }) {
   const { id } = use(params);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const queryClient = useQueryClient();
 
   const {
     data: order,
@@ -86,6 +88,27 @@ export default function OrderStatusPage({
       return 5000;
     },
   });
+
+  useEffect(() => {
+    if (!id) return;
+
+    const socket = io(
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333"
+    );
+
+    socket.on("connect", () => {
+      socket.emit("join-order", id);
+    });
+
+    socket.on("order-updated", (updatedOrder) => {
+      toast.success("O status do seu pedido mudou!");
+      queryClient.setQueryData(["order-details", id], updatedOrder);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id, queryClient]);
 
   useEffect(() => {
     if (!order?.createdAt) return;
@@ -319,7 +342,6 @@ export default function OrderStatusPage({
             {order.items?.map((item, i) => (
               <div key={i} className="flex justify-between items-start gap-3">
                 <div className="flex gap-3">
-                  {/* FOTO DO PRODUTO */}
                   <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
                     {item.product?.imageUrl ? (
                       <Image
