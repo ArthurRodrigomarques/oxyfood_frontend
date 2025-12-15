@@ -14,7 +14,7 @@ export function formatCurrency(value: number | string) {
   }).format(numericValue);
 }
 
-// Importe a interface que acabamos de criar
+//  interface
 import { OpeningHour } from "@/types/order";
 
 // Troque "any[]" por "OpeningHour[]"
