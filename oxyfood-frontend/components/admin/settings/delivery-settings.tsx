@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-// 1. Importar o tipo Resolver
 import { useForm, useWatch, Resolver } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -23,14 +22,21 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 
-const deliverySettingsSchema = z.object({
-  deliveryFee: z.coerce.number().min(0, "A taxa não pode ser negativa"),
-  isOpen: z.boolean(),
-  freeDeliveryAbove: z.preprocess((val) => {
-    if (val === "" || val === null || val === undefined) return null;
-    return Number(val);
-  }, z.number().min(0).nullable()),
-});
+const deliverySettingsSchema = z
+  .object({
+    deliveryFee: z.coerce.number().min(0, "A taxa não pode ser negativa"),
+    isOpen: z.boolean(),
+    freeDeliveryAbove: z.preprocess((val) => {
+      if (val === "" || val === null || val === undefined) return null;
+      return Number(val);
+    }, z.number().min(0).nullable()),
+    deliveryTimeMin: z.coerce.number().min(1, "Mínimo 1 minuto"),
+    deliveryTimeMax: z.coerce.number().min(1, "Mínimo 1 minuto"),
+  })
+  .refine((data) => data.deliveryTimeMax >= data.deliveryTimeMin, {
+    message: "O tempo máximo deve ser maior ou igual ao mínimo",
+    path: ["deliveryTimeMax"],
+  });
 
 type DeliverySettingsData = z.infer<typeof deliverySettingsSchema>;
 
@@ -50,6 +56,8 @@ interface RestaurantDetailsResponse {
     deliveryFee: string | number;
     freeDeliveryAbove: string | number | null;
     isOpen: boolean;
+    deliveryTimeMin?: number;
+    deliveryTimeMax?: number;
   };
 }
 
@@ -71,6 +79,8 @@ export function DeliverySettings() {
       isOpen: false,
       deliveryFee: 0,
       freeDeliveryAbove: null,
+      deliveryTimeMin: 30,
+      deliveryTimeMax: 45,
     },
   });
 
@@ -106,6 +116,8 @@ export function DeliverySettings() {
           : null
       );
       setValue("isOpen", restaurant.isOpen);
+      setValue("deliveryTimeMin", restaurant.deliveryTimeMin || 30);
+      setValue("deliveryTimeMax", restaurant.deliveryTimeMax || 45);
     }
   }, [restaurant, setValue]);
 
@@ -114,6 +126,8 @@ export function DeliverySettings() {
       await api.put(`/restaurants/${activeRestaurantId}`, {
         deliveryFee: data.deliveryFee,
         freeDeliveryAbove: data.freeDeliveryAbove,
+        deliveryTimeMin: data.deliveryTimeMin,
+        deliveryTimeMax: data.deliveryTimeMax,
       });
 
       await api.patch(`/restaurants/${activeRestaurantId}/toggle-status`, {
@@ -201,14 +215,38 @@ export function DeliverySettings() {
             </div>
           </div>
 
-          <div className="space-y-2 opacity-50 pointer-events-none">
-            <Label htmlFor="delivery-time">
-              Tempo Médio de Entrega (minutos)
-            </Label>
-            <Input id="delivery-time" defaultValue="30-45" readOnly />
+          <div className="space-y-2">
+            <Label>Tempo de Entrega (minutos)</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  {...register("deliveryTimeMin")}
+                />
+              </div>
+              <span className="text-gray-400 font-bold">-</span>
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  placeholder="Máx"
+                  {...register("deliveryTimeMax")}
+                />
+              </div>
+            </div>
             <p className="text-[10px] text-muted-foreground">
-              Fixo em 30-45 min (Em breve configurável)
+              Ex: 30 - 45 min. Isso aparecerá para o cliente.
             </p>
+            {errors.deliveryTimeMin && (
+              <span className="text-xs text-red-500">
+                {errors.deliveryTimeMin.message}
+              </span>
+            )}
+            {errors.deliveryTimeMax && (
+              <span className="text-xs text-red-500">
+                {errors.deliveryTimeMax.message}
+              </span>
+            )}
           </div>
 
           <Button

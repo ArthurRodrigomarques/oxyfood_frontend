@@ -14,16 +14,14 @@ export function formatCurrency(value: number | string) {
   }).format(numericValue);
 }
 
-// Importe a interface que acabamos de criar
+//  interface
 import { OpeningHour } from "@/types/order";
 
-// Troque "any[]" por "OpeningHour[]"
 export function checkIsOpen(openingHours: OpeningHour[]) {
   if (!openingHours || openingHours.length === 0) return false;
 
   const now = new Date();
 
-  // Força o timezone do Brasil
   const brazilTimeStr = now.toLocaleString("en-US", {
     timeZone: "America/Sao_Paulo",
   });
@@ -35,13 +33,11 @@ export function checkIsOpen(openingHours: OpeningHour[]) {
 
   const currentTotalMinutes = currentHour * 60 + currentMinute;
 
-  // O TypeScript agora sabe que 's' tem 'dayOfWeek'
   const todaySchedules = openingHours.filter((s) => s.dayOfWeek === currentDay);
 
   if (!todaySchedules || todaySchedules.length === 0) return false;
 
   return todaySchedules.some((schedule) => {
-    // O TypeScript sabe que openTime e closeTime são strings
     const [openH, openM] = schedule.openTime.split(":").map(Number);
     const [closeH, closeM] = schedule.closeTime.split(":").map(Number);
 
