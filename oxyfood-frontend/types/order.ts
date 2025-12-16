@@ -40,15 +40,15 @@ export interface Order {
   paymentMethod: "Pix" | "Dinheiro" | "Cartão" | string;
   status: OrderStatus;
   createdAt: Date | string;
-  items: OrderItem[];
 
-  // Campos de Pagamento e Pix
+  items: OrderItem[];
+  orderItems?: OrderItem[];
+
   paymentStatus?: "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED";
   paymentLink?: string | null;
   qrCodeBase64?: string | null;
   mercadoPagoId?: string | null;
 
-  // Informações do Restaurante
   restaurant?: {
     name: string;
     slug: string;

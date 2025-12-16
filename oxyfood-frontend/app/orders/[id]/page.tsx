@@ -25,7 +25,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Order } from "@/types/order";
+import { Order, OrderItem } from "@/types/order";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const steps = [
   {
@@ -69,6 +80,7 @@ export default function OrderStatusPage({
 }) {
   const { id } = use(params);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   const {
     data: order,
@@ -78,7 +90,7 @@ export default function OrderStatusPage({
     queryKey: ["order-details", id],
     queryFn: async () => {
       const response = await api.get(`/orders/${id}`);
-      return response.data.order;
+      return response.data.order || response.data;
     },
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -107,6 +119,22 @@ export default function OrderStatusPage({
       });
     }
   };
+
+  // Função para cancelar o pedido
+  async function handleCancelOrder() {
+    try {
+      setIsCanceling(true);
+      await api.patch(`/orders/${id}/cancel`);
+      toast.success("Pedido cancelado com sucesso.");
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        "Não foi possível cancelar o pedido. Talvez o restaurante já tenha aceitado."
+      );
+    } finally {
+      setIsCanceling(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -146,6 +174,8 @@ export default function OrderStatusPage({
     order.paymentMethod === "Pix" &&
     order.paymentStatus !== "APPROVED" &&
     order.paymentLink;
+
+  const displayItems: OrderItem[] = order.orderItems || order.items || [];
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] pb-20">
@@ -195,6 +225,40 @@ export default function OrderStatusPage({
       </header>
 
       <main className="container max-w-2xl mx-auto p-4 space-y-6">
+        {order.status === "PENDING" && !isRejected && (
+          <div className="flex justify-end px-1">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 text-sm h-8"
+                >
+                  Cancelar Pedido
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja cancelar? Essa ação não pode ser
+                    desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCancelOrder}
+                    className="bg-red-500 hover:bg-red-600 border-0"
+                    disabled={isCanceling}
+                  >
+                    {isCanceling ? "Cancelando..." : "Sim, Cancelar"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
         {showPixPayment && (
           <Card className="p-6 border-2 border-green-500 bg-green-50 shadow-md animate-in fade-in slide-in-from-top-4">
             <div className="flex flex-col items-center text-center space-y-4">
@@ -316,47 +380,52 @@ export default function OrderStatusPage({
           </div>
 
           <div className="space-y-4">
-            {order.items?.map((item, i) => (
-              <div key={i} className="flex justify-between items-start gap-3">
-                <div className="flex gap-3">
-                  {/* FOTO DO PRODUTO */}
-                  <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
-                    {item.product?.imageUrl ? (
-                      <Image
-                        src={item.product.imageUrl}
-                        alt={item.product.name}
-                        fill
-                        className="object-cover"
-                        sizes="48px"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full w-full text-gray-300">
-                        <ShoppingBag className="h-5 w-5" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col">
-                    <div className="flex gap-1.5 items-center">
-                      <span className="font-bold text-gray-900 text-sm bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                        {item.quantity}x
-                      </span>
-                      <span className="text-gray-800 font-medium text-sm line-clamp-2">
-                        {item.product?.name}
-                      </span>
+            {displayItems.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-2">
+                Carregando itens...
+              </p>
+            ) : (
+              displayItems.map((item, i) => (
+                <div key={i} className="flex justify-between items-start gap-3">
+                  <div className="flex gap-3">
+                    <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                      {item.product?.imageUrl ? (
+                        <Image
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          fill
+                          className="object-cover"
+                          sizes="48px"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full w-full text-gray-300">
+                          <ShoppingBag className="h-5 w-5" />
+                        </div>
+                      )}
                     </div>
-                    {item.optionsDescription && (
-                      <span className="text-xs text-gray-500 mt-0.5 leading-tight">
-                        {item.optionsDescription}
-                      </span>
-                    )}
+
+                    <div className="flex flex-col">
+                      <div className="flex gap-1.5 items-center">
+                        <span className="font-bold text-gray-900 text-sm bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                          {item.quantity}x
+                        </span>
+                        <span className="text-gray-800 font-medium text-sm line-clamp-2">
+                          {item.product?.name}
+                        </span>
+                      </div>
+                      {item.optionsDescription && (
+                        <span className="text-xs text-gray-500 mt-0.5 leading-tight">
+                          {item.optionsDescription}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <span className="font-semibold text-gray-900 text-sm whitespace-nowrap">
+                    {formatCurrency(Number(item.unitPrice) * item.quantity)}
+                  </span>
                 </div>
-                <span className="font-semibold text-gray-900 text-sm whitespace-nowrap">
-                  {formatCurrency(Number(item.unitPrice) * item.quantity)}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <Separator />
