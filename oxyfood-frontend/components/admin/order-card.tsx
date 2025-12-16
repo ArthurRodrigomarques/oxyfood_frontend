@@ -33,9 +33,15 @@ interface OrderCardProps {
   order: Order;
   onAdvance: (orderId: string) => void;
   onReject: (orderId: string) => void;
+  onUpdateStatus?: (orderId: string) => void;
 }
 
-export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
+export function OrderCard({
+  order,
+  onAdvance,
+  onReject,
+  onUpdateStatus,
+}: OrderCardProps) {
   const PaymentIcon =
     {
       Pix: QrCode,
@@ -106,11 +112,18 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
     );
   };
 
+  const handleMainAction = () => {
+    if (onAdvance) {
+      onAdvance(order.id);
+    } else if (onUpdateStatus) {
+      onUpdateStatus(order.id);
+    }
+  };
+
   return (
     <Card
       className={`border-2 shadow-sm ${config.border} flex flex-col h-full group relative`}
     >
-      {/* CABEÇALHO */}
       <CardHeader className="p-3 pb-2 bg-gray-50/50 border-b flex flex-row justify-between items-center space-y-0">
         <div className="flex items-center gap-2">
           <Badge
@@ -121,10 +134,11 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
           </Badge>
           <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {formatDistanceToNow(new Date(order.createdAt), {
-              addSuffix: true,
-              locale: ptBR,
-            })}
+            {order.createdAt &&
+              formatDistanceToNow(new Date(order.createdAt), {
+                addSuffix: true,
+                locale: ptBR,
+              })}
           </span>
         </div>
 
@@ -143,7 +157,6 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
       </CardHeader>
 
       <CardContent className="p-3 flex-1 flex flex-col gap-3">
-        {/* Cliente */}
         <div className="flex items-start gap-2 text-sm">
           <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
           <div>
@@ -161,11 +174,9 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
 
         <Separator />
 
-        {/* Itens */}
         <div className="space-y-3 flex-1">
-          {order.items.map((item, i) => (
+          {order.items?.map((item, i) => (
             <div key={i} className="flex gap-2 text-sm">
-              {/* Miniatura da Foto */}
               <div className="h-10 w-10 shrink-0 bg-gray-100 rounded-md overflow-hidden relative border border-gray-200">
                 {item.product?.imageUrl ? (
                   <Image
@@ -201,7 +212,6 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
           ))}
         </div>
 
-        {/* Total e Pagamento */}
         <div className="bg-gray-50 p-2 rounded-lg border border-gray-100 mt-auto">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -212,7 +222,6 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
               {formatCurrency(Number(order.totalPrice))}
             </span>
           </div>
-          {/* Mostra troco se tiver */}
           {order.trocoPara && (
             <div className="text-[10px] text-muted-foreground text-right mt-1">
               Troco para {formatCurrency(Number(order.trocoPara))}
@@ -221,7 +230,6 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
         </div>
       </CardContent>
 
-      {/* AÇÕES (FOOTER) */}
       {(actionLabel || order.status === "PENDING") && (
         <CardFooter className="p-3 pt-0 flex gap-2">
           {order.status === "PENDING" && (
@@ -243,7 +251,7 @@ export function OrderCard({ order, onAdvance, onReject }: OrderCardProps) {
                   ? "bg-orange-500 hover:bg-orange-600"
                   : "bg-blue-600 hover:bg-blue-700"
               }`}
-              onClick={() => onAdvance(order.id)}
+              onClick={handleMainAction}
             >
               {actionLabel}
             </Button>
