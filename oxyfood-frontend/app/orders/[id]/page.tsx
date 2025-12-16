@@ -26,6 +26,17 @@ import Image from "next/image";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Order, OrderItem } from "@/types/order";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const steps = [
   {
@@ -69,6 +80,7 @@ export default function OrderStatusPage({
 }) {
   const { id } = use(params);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   const {
     data: order,
@@ -107,6 +119,22 @@ export default function OrderStatusPage({
       });
     }
   };
+
+  // Função para cancelar o pedido
+  async function handleCancelOrder() {
+    try {
+      setIsCanceling(true);
+      await api.patch(`/orders/${id}/cancel`);
+      toast.success("Pedido cancelado com sucesso.");
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        "Não foi possível cancelar o pedido. Talvez o restaurante já tenha aceitado."
+      );
+    } finally {
+      setIsCanceling(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -197,6 +225,40 @@ export default function OrderStatusPage({
       </header>
 
       <main className="container max-w-2xl mx-auto p-4 space-y-6">
+        {order.status === "PENDING" && !isRejected && (
+          <div className="flex justify-end px-1">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 text-sm h-8"
+                >
+                  Cancelar Pedido
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja cancelar? Essa ação não pode ser
+                    desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCancelOrder}
+                    className="bg-red-500 hover:bg-red-600 border-0"
+                    disabled={isCanceling}
+                  >
+                    {isCanceling ? "Cancelando..." : "Sim, Cancelar"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
         {showPixPayment && (
           <Card className="p-6 border-2 border-green-500 bg-green-50 shadow-md animate-in fade-in slide-in-from-top-4">
             <div className="flex flex-col items-center text-center space-y-4">
