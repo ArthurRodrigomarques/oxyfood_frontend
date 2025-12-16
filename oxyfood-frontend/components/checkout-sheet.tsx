@@ -5,7 +5,6 @@ import { useCartStore } from "@/store/cart-store";
 import { useOrderHistoryStore } from "@/store/order-history-store";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
@@ -20,9 +19,10 @@ import {
   User,
   ArrowRight,
   ArrowLeft,
-  LucideIcon,
   Store,
   Globe,
+  Locate,
+  CheckCircle2,
 } from "lucide-react";
 import { RestaurantData } from "@/types/order";
 
@@ -37,62 +37,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { formatCurrency, cn } from "@/lib/utils";
 import Image from "next/image";
 
-const checkoutSchema = z.object({
-  customerName: z.string().min(3, "Nome muito curto"),
-  customerPhone: z.string().min(9, "Telefone inválido"),
-  customerAddress: z.string().min(10, "Endereço muito curto"),
-  paymentMethod: z.enum(["Dinheiro", "Pix", "Cartao", "CartaoOnline"]),
-  trocoPara: z.string().optional(),
-});
-
-type CheckoutFormData = z.infer<typeof checkoutSchema>;
-
-type PaymentMethodType = "Dinheiro" | "Pix" | "Cartao" | "CartaoOnline";
+// Importações dos novos arquivos separados
+import { checkoutSchema, CheckoutFormData } from "./checkout/schema";
+import { PaymentOption, PaymentMethodType } from "./checkout/payment-option";
 
 interface CheckoutSheetProps {
   restaurant: RestaurantData;
-}
-
-interface PaymentOptionProps {
-  value: PaymentMethodType;
-  icon: LucideIcon;
-  label: string;
-  selected: string;
-}
-
-function PaymentOption({
-  value,
-  icon: Icon,
-  label,
-  selected,
-}: PaymentOptionProps) {
-  return (
-    <Label
-      htmlFor={value}
-      className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-muted/50",
-        selected === value
-          ? "border-orange-500 bg-orange-50 text-orange-700"
-          : "border-muted bg-white text-muted-foreground"
-      )}
-    >
-      <RadioGroupItem value={value} id={value} className="sr-only" />
-      <Icon
-        className={cn(
-          "h-6 w-6",
-          selected === value ? "text-orange-500" : "text-gray-400"
-        )}
-      />
-      <span className="text-xs font-bold text-center">{label}</span>
-    </Label>
-  );
 }
 
 export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
@@ -100,6 +57,36 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"cart" | "details">("cart");
+
+  // --- GEOLOCALIZAÇÃO ---
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+
+  const handleGetLocation = () => {
+    setIsLoadingLocation(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setIsLoadingLocation(false);
+          toast.success("Localização obtida com sucesso!");
+        },
+        (error) => {
+          console.error(error);
+          toast.error("Erro ao obter localização. Verifique as permissões.");
+          setIsLoadingLocation(false);
+        }
+      );
+    } else {
+      toast.error("Seu navegador não suporta geolocalização.");
+      setIsLoadingLocation(false);
+    }
+  };
 
   const { items, removeItem, clearCart } = useCartStore();
   const { addOrder } = useOrderHistoryStore();
@@ -147,18 +134,20 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
         }
       }
 
-      // --- PROTEÇÃO CONTRA ERRO "READING ID OF NULL" ---
       const validItems = items.filter(
         (item) => item.product && item.product.id
       );
 
+      // --- COORDENADAS ---
       const payload = {
         ...data,
         trocoPara,
+        customerLatitude: location?.lat,
+        customerLongitude: location?.lng,
         items: validItems.map((item) => ({
-          productId: item.product.id, // O filtro acima garante que isso existe
+          productId: item.product.id,
           quantity: item.quantity,
-          options: item.selectedOptions?.map((opt) => opt.id) || [], // Proteção se options for null
+          options: item.selectedOptions?.map((opt) => opt.id) || [],
           observation: item.notes,
         })),
       };
@@ -170,14 +159,12 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
 
       const createdOrder = response.data.order || response.data;
 
-      // --- PROTEÇÃO CONTRA RESPOSTA VAZIA ---
       if (!createdOrder || !createdOrder.id) {
         throw new Error("Erro: O servidor não retornou os dados do pedido.");
       }
 
       if (data.paymentMethod === "CartaoOnline") {
         if (createdOrder.paymentLink) {
-          // Salva no histórico local antes de redirecionar
           addOrder({
             id: createdOrder.id,
             restaurantName: restaurant.name,
@@ -187,8 +174,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
           });
           clearCart();
           toast.loading("Redirecionando para o Mercado Pago...");
-
-          // Redirecionamento forçado
           window.location.href = createdOrder.paymentLink;
           return;
         } else {
@@ -197,7 +182,6 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
         }
       }
 
-      // Fluxo Normal (Pix / Dinheiro / Cartão na Entrega)
       addOrder({
         id: createdOrder.id,
         restaurantName: restaurant.name,
@@ -209,6 +193,7 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
       setIsOpen(false);
       setStep("cart");
       reset();
+      setLocation(null);
 
       if (data.paymentMethod === "Pix") {
         toast.success("Pedido criado! Escaneie o QR Code.");
@@ -395,10 +380,42 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                     </div>
 
                     <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
-                      <div className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
-                        <MapPin className="h-4 w-4 text-orange-500" />
-                        Entrega
+                      {/* --- CABEÇALHO DE ENTREGA COM BOTÃO --- */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                          <MapPin className="h-4 w-4 text-orange-500" />
+                          Entrega
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGetLocation}
+                          disabled={isLoadingLocation}
+                          className={cn(
+                            "h-8 text-xs gap-1.5 transition-colors",
+                            location
+                              ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
+                              : "border-orange-200 text-orange-600 hover:bg-orange-50"
+                          )}
+                        >
+                          {isLoadingLocation ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : location ? (
+                            <CheckCircle2 className="h-3 w-3" />
+                          ) : (
+                            <Locate className="h-3 w-3" />
+                          )}
+                          {isLoadingLocation
+                            ? "Buscando..."
+                            : location
+                            ? "Localização OK"
+                            : "Usar minha localização"}
+                        </Button>
                       </div>
+                      {/* ------------------------------------- */}
+
                       <div className="space-y-1">
                         <Label className="text-xs text-gray-500">
                           Endereço Completo
@@ -412,6 +429,12 @@ export function CheckoutSheet({ restaurant }: CheckoutSheetProps) {
                           <span className="text-xs text-red-500">
                             {errors.customerAddress.message}
                           </span>
+                        )}
+                        {location && (
+                          <p className="text-[10px] text-green-600 flex items-center gap-1 animate-in fade-in">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Coordenadas GPS vinculadas ao pedido.
+                          </p>
                         )}
                       </div>
                     </div>

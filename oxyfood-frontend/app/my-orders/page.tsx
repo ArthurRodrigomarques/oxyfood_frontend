@@ -1,16 +1,40 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useOrderHistoryStore } from "@/store/order-history-store";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Link from "next/link";
-import { ArrowRight, ShoppingBag, Clock, ArrowLeft, Store } from "lucide-react";
+import {
+  ArrowRight,
+  ShoppingBag,
+  Clock,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function MyOrdersPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const { orders } = useOrderHistoryStore();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setIsMounted(true);
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
   const lastRestaurantSlug = orders[0]?.restaurantSlug;
 
@@ -25,7 +49,11 @@ export default function MyOrdersPage() {
               </Button>
             </Link>
           ) : (
-            <div className="w-9" />
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="-ml-2">
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </Button>
+            </Link>
           )}
 
           <div className="flex-1">
@@ -49,7 +77,6 @@ export default function MyOrdersPage() {
         </div>
       </div>
 
-      {/* LISTA DE PEDIDOS */}
       <div className="container max-w-lg mx-auto p-4 space-y-4">
         {orders.length === 0 ? (
           <div className="text-center py-16 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
@@ -62,6 +89,11 @@ export default function MyOrdersPage() {
             <p className="text-gray-500 max-w-[250px] mt-2 mb-6 text-sm">
               Seus pedidos realizados aparecerão aqui.
             </p>
+            <Link href="/">
+              <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                Buscar Restaurantes
+              </Button>
+            </Link>
           </div>
         ) : (
           orders.map((order) => (
@@ -80,13 +112,15 @@ export default function MyOrdersPage() {
 
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 truncate text-base">
-                      {order.restaurantName}
+                      {order.restaurantName || "Restaurante"}
                     </h3>
                     <div className="flex items-center text-xs text-gray-500 mt-1">
                       <Clock className="h-3 w-3 mr-1" />
-                      {format(new Date(order.date), "dd/MM 'às' HH:mm", {
-                        locale: ptBR,
-                      })}
+                      {order.date
+                        ? format(new Date(order.date), "dd/MM 'às' HH:mm", {
+                            locale: ptBR,
+                          })
+                        : "Data indisponível"}
                     </div>
                   </div>
 

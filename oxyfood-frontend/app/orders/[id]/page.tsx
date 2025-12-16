@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,8 +25,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Order } from "@/types/order";
-import { io } from "socket.io-client";
+import { Order, OrderItem } from "@/types/order";
 
 const steps = [
   {
@@ -70,7 +69,6 @@ export default function OrderStatusPage({
 }) {
   const { id } = use(params);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const queryClient = useQueryClient();
 
   const {
     data: order,
@@ -80,7 +78,7 @@ export default function OrderStatusPage({
     queryKey: ["order-details", id],
     queryFn: async () => {
       const response = await api.get(`/orders/${id}`);
-      return response.data.order;
+      return response.data.order || response.data;
     },
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -88,27 +86,6 @@ export default function OrderStatusPage({
       return 5000;
     },
   });
-
-  useEffect(() => {
-    if (!id) return;
-
-    const socket = io(
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333"
-    );
-
-    socket.on("connect", () => {
-      socket.emit("join-order", id);
-    });
-
-    socket.on("order-updated", (updatedOrder) => {
-      toast.success("O status do seu pedido mudou!");
-      queryClient.setQueryData(["order-details", id], updatedOrder);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [id, queryClient]);
 
   useEffect(() => {
     if (!order?.createdAt) return;
@@ -169,6 +146,8 @@ export default function OrderStatusPage({
     order.paymentMethod === "Pix" &&
     order.paymentStatus !== "APPROVED" &&
     order.paymentLink;
+
+  const displayItems: OrderItem[] = order.orderItems || order.items || [];
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] pb-20">
@@ -339,46 +318,52 @@ export default function OrderStatusPage({
           </div>
 
           <div className="space-y-4">
-            {order.items?.map((item, i) => (
-              <div key={i} className="flex justify-between items-start gap-3">
-                <div className="flex gap-3">
-                  <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
-                    {item.product?.imageUrl ? (
-                      <Image
-                        src={item.product.imageUrl}
-                        alt={item.product.name}
-                        fill
-                        className="object-cover"
-                        sizes="48px"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full w-full text-gray-300">
-                        <ShoppingBag className="h-5 w-5" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col">
-                    <div className="flex gap-1.5 items-center">
-                      <span className="font-bold text-gray-900 text-sm bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                        {item.quantity}x
-                      </span>
-                      <span className="text-gray-800 font-medium text-sm line-clamp-2">
-                        {item.product?.name}
-                      </span>
+            {displayItems.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-2">
+                Carregando itens...
+              </p>
+            ) : (
+              displayItems.map((item, i) => (
+                <div key={i} className="flex justify-between items-start gap-3">
+                  <div className="flex gap-3">
+                    <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                      {item.product?.imageUrl ? (
+                        <Image
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          fill
+                          className="object-cover"
+                          sizes="48px"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full w-full text-gray-300">
+                          <ShoppingBag className="h-5 w-5" />
+                        </div>
+                      )}
                     </div>
-                    {item.optionsDescription && (
-                      <span className="text-xs text-gray-500 mt-0.5 leading-tight">
-                        {item.optionsDescription}
-                      </span>
-                    )}
+
+                    <div className="flex flex-col">
+                      <div className="flex gap-1.5 items-center">
+                        <span className="font-bold text-gray-900 text-sm bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                          {item.quantity}x
+                        </span>
+                        <span className="text-gray-800 font-medium text-sm line-clamp-2">
+                          {item.product?.name}
+                        </span>
+                      </div>
+                      {item.optionsDescription && (
+                        <span className="text-xs text-gray-500 mt-0.5 leading-tight">
+                          {item.optionsDescription}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <span className="font-semibold text-gray-900 text-sm whitespace-nowrap">
+                    {formatCurrency(Number(item.unitPrice) * item.quantity)}
+                  </span>
                 </div>
-                <span className="font-semibold text-gray-900 text-sm whitespace-nowrap">
-                  {formatCurrency(Number(item.unitPrice) * item.quantity)}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <Separator />

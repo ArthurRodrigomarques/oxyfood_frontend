@@ -38,7 +38,7 @@ export function LoginForm() {
   async function onSubmit(data: LoginFormData) {
     setIsLoading(true);
     try {
-      const response = await api.post("/sessions", data);
+      const response = await api.post("/auth/login", data);
       const { token, user } = response.data;
 
       login(token, user);
