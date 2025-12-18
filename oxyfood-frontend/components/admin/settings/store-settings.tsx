@@ -1,76 +1,77 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUpload } from "@/components/ui/image-upload";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { QrCodeCard } from "./qr-code-card";
+
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { ImageUpload } from "@/components/ui/image-upload";
+import { RestaurantData } from "@/types/order";
 
-interface StoreFormData {
-  name: string;
-  addressText: string;
-  phoneNumber: string;
-  description: string;
-  logoUrl: string | null;
-  bannerUrl: string | null;
-}
-
-interface UserRestaurant {
-  id: string;
-  name: string;
-  slug: string;
-}
-
+// Interfaces para a API
 interface MeResponse {
   user: {
-    restaurants: UserRestaurant[];
+    restaurants: { id: string; slug: string }[];
   };
 }
 
 interface RestaurantDetailsResponse {
-  restaurant: {
-    name: string;
-    addressText: string;
-    phoneNumber: string;
-    description: string | null;
-    logoUrl: string | null;
-    bannerUrl: string | null;
-  };
+  restaurant: RestaurantData;
 }
+
+// Schema de validação
+const formSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  description: z.string().optional(),
+  slug: z.string().min(1, "URL amigável é obrigatória"),
+  logoUrl: z.string().optional(),
+  bannerUrl: z.string().optional(),
+  addressText: z.string().min(1, "Endereço é obrigatório"),
+  phoneNumber: z.string().min(1, "Telefone é obrigatório"),
+  cpfCnpj: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 export function StoreSettings() {
   const { activeRestaurantId } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, reset, setValue, control, formState } =
-    useForm<StoreFormData>({
-      defaultValues: {
-        name: "",
-        addressText: "",
-        phoneNumber: "",
-        description: "",
-        logoUrl: null,
-        bannerUrl: null,
-      },
-    });
+  // 1. Configuração do Formulário
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      slug: "",
+      logoUrl: "",
+      bannerUrl: "",
+      addressText: "",
+      phoneNumber: "",
+      cpfCnpj: "",
+    },
+  });
 
-  const logoUrl = useWatch({ control, name: "logoUrl" });
-  const bannerUrl = useWatch({ control, name: "bannerUrl" });
-
+  // 2. Busca de Dados
   const { data: restaurant, isLoading } = useQuery({
     queryKey: ["restaurant-settings", activeRestaurantId],
     queryFn: async () => {
@@ -88,152 +89,254 @@ export function StoreSettings() {
       return null;
     },
     enabled: !!activeRestaurantId,
-    refetchOnWindowFocus: false,
   });
 
+  // 3. Atualiza o form quando os dados chegam
   useEffect(() => {
-    if (restaurant && !formState.isDirty) {
-      reset({
+    if (restaurant) {
+      form.reset({
         name: restaurant.name || "",
+        description: restaurant.description || "",
+        slug: restaurant.slug || "",
+        logoUrl: restaurant.logoUrl || "",
+        bannerUrl: restaurant.bannerUrl || "",
         addressText: restaurant.addressText || "",
         phoneNumber: restaurant.phoneNumber || "",
-        description: restaurant.description || "",
-        logoUrl: restaurant.logoUrl,
-        bannerUrl: restaurant.bannerUrl,
+        cpfCnpj: restaurant.cpfCnpj || "",
       });
     }
-  }, [restaurant, reset, formState.isDirty]);
+  }, [restaurant, form]);
 
-  const { mutate: updateStore, isPending } = useMutation({
-    mutationFn: async (data: StoreFormData) => {
-      const payload = {
-        ...data,
-        logoUrl: data.logoUrl || null,
-        bannerUrl: data.bannerUrl || null,
-      };
-
-      await api.put(`/restaurants/${activeRestaurantId}`, payload);
+  // 4. Mutação para Salvar (CORRIGIDO: patch -> put)
+  const { mutate: updateStore, isPending: isSaving } = useMutation({
+    mutationFn: async (values: FormValues) => {
+      // Backend espera PUT para atualização completa/parcial nesta rota
+      await api.put(`/restaurants/${activeRestaurantId}`, values);
     },
     onSuccess: () => {
       toast.success("Loja atualizada com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["restaurant-settings"] });
-      queryClient.invalidateQueries({ queryKey: ["restaurant-public"] });
-      reset(undefined, { keepValues: true });
+
+      if (restaurant?.slug) {
+        queryClient.invalidateQueries({
+          queryKey: ["restaurant-public", restaurant.slug],
+        });
+      }
     },
-    onError: () => {
-      toast.error("Erro ao atualizar loja.");
+    onError: (error) => {
+      console.error(error);
+      toast.error("Erro ao atualizar loja. Verifique os dados.");
     },
   });
 
   if (isLoading) {
     return (
-      <div className="p-8 flex justify-center">
-        <Loader2 className="animate-spin text-orange-500" />
+      <div className="flex h-40 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
       </div>
     );
   }
 
+  if (!restaurant) {
+    return <div>Não foi possível carregar os dados da loja.</div>;
+  }
+
   return (
-    <div className="space-y-6">
-      <form
-        onSubmit={handleSubmit((data) => updateStore(data))}
-        className="space-y-6"
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle>Identidade Visual</CardTitle>
-            <CardDescription>
-              Personalize como sua loja aparece para os clientes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="w-full md:w-48 shrink-0 space-y-2">
-                <ImageUpload
-                  label="Logo da Loja"
-                  value={logoUrl}
-                  onChange={(url) => {
-                    setValue("logoUrl", url, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                  }}
-                  aspectRatio="square"
-                />
-                <p className="text-[10px] text-muted-foreground text-center">
-                  Aparece no cabeçalho
-                </p>
-              </div>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <QrCodeCard slug={restaurant.slug} restaurantName={restaurant.name} />
 
-              <div className="flex-1 space-y-2">
-                <ImageUpload
-                  label="Banner de Capa (1200x400)"
-                  value={bannerUrl}
-                  onChange={(url) => {
-                    setValue("bannerUrl", url, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                  }}
-                  aspectRatio="wide"
-                />
-                <p className="text-[10px] text-muted-foreground text-center">
-                  Aparece no topo da página da loja
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações Básicas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome da Loja</Label>
-                <Input id="name" {...register("name")} />
-              </div>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit((data) => updateStore(data))}
+          className="space-y-8"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Imagens */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="logoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Logo da Loja</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        label="Logo"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Formato quadrado (ex: 500x500px)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone / WhatsApp</Label>
-                <Input id="phone" {...register("phoneNumber")} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Endereço Completo</Label>
-              <Input id="address" {...register("addressText")} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                rows={4}
-                {...register("description")}
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner de Capa</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        aspectRatio="wide"
+                        label="Banner"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Formato horizontal (ex: 1200x400px)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            <div className="flex justify-end pt-4">
-              <Button
-                type="submit"
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold w-full md:w-auto"
-                disabled={isPending}
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                    Salvando...
-                  </>
-                ) : (
-                  "Salvar Alterações"
+            {/* Dados Principais */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome da Loja</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: OxyFood Burguer" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </Button>
+              />
+
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Amigável (Slug)</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground bg-muted p-2 rounded-md h-10 flex items-center border border-r-0 rounded-r-none border-input">
+                        oxyfood.com/
+                      </span>
+                      <FormControl>
+                        <Input
+                          placeholder="minha-loja"
+                          className="rounded-l-none"
+                          {...field}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormDescription>
+                      Link para seus clientes acessarem.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição Curta</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Ex: O melhor hambúrguer artesanal da cidade..."
+                        className="resize-none h-24"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </CardContent>
-        </Card>
-      </form>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50 p-6 rounded-xl border">
+            <FormField
+              control={form.control}
+              name="addressText"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço Completo</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Rua, Número, Bairro, Cidade - UF"
+                      className="resize-none bg-white"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp / Telefone</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="(11) 99999-9999"
+                        className="bg-white"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="cpfCnpj"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF ou CNPJ (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="00.000.000/0001-00"
+                        className="bg-white"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isSaving}
+              className="bg-orange-500 hover:bg-orange-600 font-bold min-w-[150px]"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }

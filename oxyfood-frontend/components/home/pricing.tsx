@@ -36,7 +36,7 @@ function PricingCard({
     >
       {isPopular && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-sm uppercase tracking-wide">
-          Mais Popular
+          Recomendado
         </div>
       )}
       <CardHeader>
@@ -78,48 +78,50 @@ export function Pricing() {
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold mb-4 text-foreground">Planos</h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Escolha o plano ideal para o tamanho do seu negócio. Sem fidelidade.
+          Escolha o plano ideal para o tamanho do seu delivery. Cancele quando
+          quiser.
         </p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
         <PricingCard
-          title="Básico"
-          description="Para começar"
-          price="49"
+          title="Start"
+          description="Para quem está começando"
+          price="59,90"
           features={[
-            "Até 50 pedidos/mês",
-            "Cardápio digital",
-            "Gestão de pedidos",
-            "Suporte por email",
+            "Até 80 pedidos/mês",
+            "Cardápio Digital com QR Code",
+            "Painel de Gestão de Pedidos",
+            "Gestão de Taxas de Entrega",
+            "Suporte via Email",
           ]}
-          buttonText="Começar Agora"
+          buttonText="Criar Conta Grátis"
           variant="outline"
         />
         <PricingCard
-          title="Profissional"
-          description="Para crescer"
-          price="99"
+          title="Pro"
+          description="Para restaurantes em crescimento"
+          price="119,90"
           isPopular
           features={[
-            "Pedidos ilimitados",
-            "Todos recursos do Básico",
-            "Relatórios avançados",
-            "Suporte prioritário",
-            "Customização avançada",
+            "Pedidos Ilimitados",
+            "Tudo do plano Start",
+            "Impressão de Pedidos (Cupom)",
+            "Relatórios de Vendas",
+            "Suporte via WhatsApp",
           ]}
-          buttonText="Começar Agora"
+          buttonText="Assinar Plano Pro"
         />
         <PricingCard
           title="Enterprise"
-          description="Para grandes operações"
-          price="199"
+          description="Para redes e franquias"
+          price="299,90"
           features={[
-            "Tudo do Profissional",
-            "Múltiplas lojas",
-            "API personalizada",
-            "Suporte 24/7",
-            "Gerente de conta dedicado",
+            "Gestão Multi-lojas (Redes)",
+            "API para Integrações",
+            "Gerente de Conta Dedicado",
+            "Suporte Prioritário 24/7",
+            "Treinamento da Equipe",
           ]}
           buttonText="Falar com Vendas"
           variant="outline"
