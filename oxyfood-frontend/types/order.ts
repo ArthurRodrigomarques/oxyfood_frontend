@@ -99,6 +99,9 @@ export interface RestaurantData {
   addressText: string;
   address?: string;
   phoneNumber: string;
+  cpfCnpj: string | null;
+  maxDeliveryDistanceKm?: number;
+
   isOpen: boolean;
   deliveryFee: number | string;
   freeDeliveryAbove: number | string | null;

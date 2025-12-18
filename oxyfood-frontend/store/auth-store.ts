@@ -6,11 +6,11 @@ interface RestaurantInfo {
   name: string;
   slug: string;
 }
-
 interface User {
   id: string;
   name: string;
   email: string;
+  role: "OWNER" | "SUPER_ADMIN" | string;
   restaurants?: RestaurantInfo[];
 }
 

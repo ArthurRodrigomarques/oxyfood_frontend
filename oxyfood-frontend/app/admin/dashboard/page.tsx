@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { MobileSidebar } from "@/components/admin/mobile-sidebar";
 import { OrderColumn } from "@/components/admin/order-column";
@@ -15,7 +16,6 @@ import { Bell, Search, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { io } from "socket.io-client";
 
-// --- Interfaces locais para tipar a resposta da API ---
 interface ApiOrderItem {
   id: string;
   quantity: number;
@@ -49,9 +49,16 @@ interface RestaurantDetails {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { activeRestaurantId, user } = useAuthStore();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (user?.role === "SUPER_ADMIN") {
+      router.replace("/admin/super");
+    }
+  }, [user, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -113,7 +120,7 @@ export default function DashboardPage() {
         customerPhone: order.customerPhone,
         customerAddress: order.customerAddress,
         totalPrice: Number(order.totalPrice),
-        deliveryFee: Number(order.deliveryFee || 0), // Correção: Mapeando deliveryFee
+        deliveryFee: Number(order.deliveryFee || 0),
         paymentMethod: order.paymentMethod as "Pix" | "Dinheiro" | "Cartão",
         status: order.status,
         createdAt: new Date(order.createdAt),
@@ -151,12 +158,6 @@ export default function DashboardPage() {
 
     socket.on("connect_error", (err) => {
       console.error("Erro de conexão no socket:", err.message);
-      if (
-        err.message === "Autenticação necessária." ||
-        err.message === "Token inválido ou expirado."
-      ) {
-        toast.error("Sessão expirada. Por favor, faça login novamente.");
-      }
     });
 
     socket.on("new-order", (newOrder) => {
@@ -217,9 +218,19 @@ export default function DashboardPage() {
     }
   };
 
-  const pendingOrders = orders.filter((o) => o.status === "PENDING");
-  const preparingOrders = orders.filter((o) => o.status === "PREPARING");
-  const deliveryOrders = orders.filter((o) => o.status === "OUT");
+  if (user?.role === "SUPER_ADMIN") {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50 flex-col gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-gray-800">
+            Acessando Painel Master
+          </h2>
+          <p className="text-gray-500 text-sm">Validando credenciais...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeRestaurantId) {
     return (
@@ -228,6 +239,11 @@ export default function DashboardPage() {
       </main>
     );
   }
+
+  // 4. Se não for Admin e tiver loja, renderiza o Dashboard normal
+  const pendingOrders = orders.filter((o) => o.status === "PENDING");
+  const preparingOrders = orders.filter((o) => o.status === "PREPARING");
+  const deliveryOrders = orders.filter((o) => o.status === "OUT");
 
   if (isLoadingOrders) {
     return (
