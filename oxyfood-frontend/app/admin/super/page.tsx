@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
@@ -22,13 +22,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import {
   Loader2,
   DollarSign,
   Store,
   ShoppingBag,
-  TrendingUp,
+  BarChart3,
   ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -37,6 +40,7 @@ interface AdminMetrics {
   activeRestaurants: number;
   totalOrders: number;
   totalRevenue: number;
+  averageTicket: number;
 }
 
 interface AdminRestaurant {
@@ -44,7 +48,8 @@ interface AdminRestaurant {
   name: string;
   slug: string;
   createdAt: string;
-  subscriptionStatus: string;
+  subscriptionStatus: "ACTIVE" | "INACTIVE";
+  isOpen: boolean;
   user: {
     name: string;
     email: string;
@@ -57,6 +62,7 @@ interface AdminRestaurant {
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Proteção Client-Side
   useEffect(() => {
@@ -89,27 +95,42 @@ export default function SuperAdminPage() {
     }
   );
 
+  // Mutation para alterar status
+  const { mutate: toggleStatus, isPending: isToggling } = useMutation({
+    mutationFn: async (restaurantId: string) => {
+      await api.patch(`/admin/restaurants/${restaurantId}/toggle`);
+    },
+    onSuccess: () => {
+      toast.success("Status da loja atualizado!");
+      queryClient.invalidateQueries({ queryKey: ["super-admin-restaurants"] });
+      queryClient.invalidateQueries({ queryKey: ["super-admin-metrics"] });
+    },
+    onError: () => {
+      toast.error("Erro ao atualizar status.");
+    },
+  });
+
   if (!user || user.role !== "SUPER_ADMIN") {
     return null;
   }
 
   return (
-    <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-8 space-y-8 bg-gray-50 min-h-screen">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
             <ShieldCheck className="h-8 w-8 text-blue-600" />
-            Painel do Super Admin
+            Painel Master
           </h1>
           <p className="text-muted-foreground mt-1">
-            Visão geral de faturamento e gestão da plataforma OxyFood.
+            Gestão global da plataforma OxyFood.
           </p>
         </div>
       </div>
 
       {/* --- CARDS DE MÉTRICAS --- */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Faturamento Total
@@ -125,7 +146,7 @@ export default function SuperAdminPage() {
                   {formatCurrency(metrics?.totalRevenue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Valor bruto transacionado
+                  GMV (Volume Bruto de Mercadorias)
                 </p>
               </>
             )}
@@ -148,7 +169,7 @@ export default function SuperAdminPage() {
                   {metrics?.totalRestaurants || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {metrics?.activeRestaurants} ativas (planos pagos)
+                  {metrics?.activeRestaurants} ativas no momento
                 </p>
               </>
             )}
@@ -171,19 +192,19 @@ export default function SuperAdminPage() {
                   {metrics?.totalOrders || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Pedidos finalizados na plataforma
+                  Pedidos processados
                 </p>
               </>
             )}
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm bg-blue-600 text-white">
+        <Card className="shadow-sm bg-blue-600 text-white border-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-100">
-              Receita Estimada (SaaS)
+              Ticket Médio Global
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-white" />
+            <BarChart3 className="h-4 w-4 text-white" />
           </CardHeader>
           <CardContent>
             {loadingMetrics ? (
@@ -191,11 +212,10 @@ export default function SuperAdminPage() {
             ) : (
               <>
                 <div className="text-2xl font-bold">
-                  {/* Estimativa simples: Lojas Ativas * R$ 99 (Ticket Médio) */}
-                  {formatCurrency((metrics?.activeRestaurants || 0) * 99.9)}
+                  {formatCurrency(metrics?.averageTicket || 0)}
                 </div>
                 <p className="text-xs text-blue-200">
-                  Baseado em assinaturas ativas
+                  Média de valor por pedido
                 </p>
               </>
             )}
@@ -206,9 +226,9 @@ export default function SuperAdminPage() {
       {/* --- TABELA DE LOJAS --- */}
       <Card>
         <CardHeader>
-          <CardTitle>Gestão de Restaurantes</CardTitle>
+          <CardTitle>Restaurantes Parceiros</CardTitle>
           <CardDescription>
-            Lista de todos os parceiros cadastrados.
+            Controle de ativação e acesso das lojas.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,60 +240,87 @@ export default function SuperAdminPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Loja</TableHead>
-                  <TableHead>Dono</TableHead>
-                  <TableHead>Cadastro</TableHead>
-                  <TableHead>Pedidos</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Restaurante</TableHead>
+                  <TableHead>Proprietário</TableHead>
+                  <TableHead>Desde</TableHead>
+                  <TableHead className="text-center">Vendas</TableHead>
+                  <TableHead className="text-center">Assinatura</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {restaurantsResponse?.restaurants.map((restaurant) => (
                   <TableRow key={restaurant.id}>
-                    <TableCell className="font-medium">
-                      {restaurant.name}
-                      <span className="block text-xs text-muted-foreground">
-                        /{restaurant.slug}
-                      </span>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">
+                          {restaurant.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          slug: {restaurant.slug}
+                        </span>
+                        {restaurant.isOpen ? (
+                          <span className="text-[10px] text-green-600 font-bold mt-1">
+                            • ABERTA AGORA
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-red-400 mt-1">
+                            • FECHADA
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {restaurant.user.name}
-                      <span className="block text-xs text-muted-foreground">
-                        {restaurant.user.email}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{restaurant.user.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {restaurant.user.email}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {new Date(restaurant.createdAt).toLocaleDateString(
                         "pt-BR"
                       )}
                     </TableCell>
-                    <TableCell>{restaurant._count.orders}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          restaurant.subscriptionStatus === "ACTIVE"
-                            ? "default"
-                            : "secondary"
-                        }
-                        className={
-                          restaurant.subscriptionStatus === "ACTIVE"
-                            ? "bg-green-600 hover:bg-green-700"
-                            : ""
-                        }
-                      >
-                        {restaurant.subscriptionStatus === "ACTIVE"
-                          ? "Ativo"
-                          : "Inativo"}
+                    <TableCell className="text-center">
+                      <Badge variant="outline">
+                        {restaurant._count.orders} pedidos
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Switch
+                          disabled={isToggling}
+                          checked={restaurant.subscriptionStatus === "ACTIVE"}
+                          onCheckedChange={() => toggleStatus(restaurant.id)}
+                        />
+                        <span
+                          className={`text-xs font-bold ${
+                            restaurant.subscriptionStatus === "ACTIVE"
+                              ? "text-green-600"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {restaurant.subscriptionStatus === "ACTIVE"
+                            ? "ATIVA"
+                            : "INATIVA"}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        asChild
+                      >
                         <a
                           href={`/restaurants/${restaurant.slug}`}
                           target="_blank"
+                          title="Ver página pública"
                         >
-                          Ver Loja
+                          <ExternalLink className="h-4 w-4 text-gray-500" />
                         </a>
                       </Button>
                     </TableCell>

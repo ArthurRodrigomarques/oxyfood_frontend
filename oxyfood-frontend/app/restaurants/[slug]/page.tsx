@@ -23,6 +23,7 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { RestaurantData } from "@/types/order";
 import { useOrderHistoryStore } from "@/store/order-history-store";
+import { ReviewsSection } from "@/components/reviews.section";
 
 interface RestaurantResponse {
   restaurant: RestaurantData;
@@ -248,6 +249,14 @@ export default function RestaurantPage({
           </div>
         )}
       </main>
+
+      <div className="fixed bottom-6 right-4 z-50 md:hidden">
+        <CheckoutSheet restaurant={restaurant} />
+      </div>
+
+      <div className="mt-12 pt-8 border-t">
+        <ReviewsSection restaurantId={restaurant.id} />
+      </div>
 
       <div className="fixed bottom-6 right-4 z-50 md:hidden">
         <CheckoutSheet restaurant={restaurant} />

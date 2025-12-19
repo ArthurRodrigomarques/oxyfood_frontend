@@ -11,6 +11,7 @@ import {
   LogOut,
   ExternalLink,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
@@ -20,7 +21,7 @@ interface SidebarContentProps {
   onLinkClick?: () => void;
 }
 
-const routes = [
+const ownerRoutes = [
   {
     label: "Pedidos",
     icon: LayoutDashboard,
@@ -47,6 +48,15 @@ const routes = [
   },
 ];
 
+const superAdminRoutes = [
+  {
+    label: "Painel Master",
+    icon: ShieldCheck,
+    href: "/admin/super",
+    color: "text-blue-600",
+  },
+];
+
 export function SidebarContent({ onLinkClick }: SidebarContentProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -57,22 +67,45 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
     router.push("/login");
   };
 
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const routes = isSuperAdmin ? superAdminRoutes : ownerRoutes;
+
   const activeRestaurant = user?.restaurants?.find(
     (r) => r.id === activeRestaurantId
   );
-  const publicStoreUrl = activeRestaurant
-    ? `/restaurants/${activeRestaurant.slug}`
-    : null;
+
+  const publicStoreUrl =
+    !isSuperAdmin && activeRestaurant
+      ? `/restaurants/${activeRestaurant.slug}`
+      : null;
 
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-white text-gray-900 border-r">
       <div className="px-3 py-2 flex-1 flex flex-col overflow-y-auto">
-        {/* Switcher de Restaurantes */}
-        <div className="mb-6 px-2">
-          <RestaurantSwitcher />
-        </div>
+        {/* CABEÇALHO DO MENU */}
+        {isSuperAdmin ? (
+          <div className="mb-8 px-4 py-3 bg-blue-50 rounded-xl border border-blue-100 mx-1">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1 bg-blue-600 rounded-md">
+                <TrendingUp className="h-4 w-4 text-white" />
+              </div>
+              <span className="font-bold text-blue-900 tracking-tight text-sm">
+                Admin Master
+              </span>
+            </div>
+            <p className="text-[10px] text-blue-600/80 font-medium pl-1">
+              Gestão Global da Plataforma
+            </p>
+          </div>
+        ) : (
+          // Switcher padrão para Donos
+          <div className="mb-6 px-2">
+            <RestaurantSwitcher />
+          </div>
+        )}
 
-        {/* Menu Principal (Restaurante) */}
+        {/* LISTA DE LINKS */}
         <div className="space-y-1">
           {routes.map((route) => (
             <Link
@@ -80,10 +113,12 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
               href={route.href}
               onClick={onLinkClick}
               className={cn(
-                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-orange-600 hover:bg-orange-50 rounded-lg transition",
+                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer rounded-lg transition-all duration-200",
                 pathname === route.href
-                  ? "text-orange-600 bg-orange-50 font-bold"
-                  : "text-zinc-600"
+                  ? isSuperAdmin
+                    ? "text-blue-700 bg-blue-50 font-bold shadow-sm"
+                    : "text-orange-600 bg-orange-50 font-bold shadow-sm"
+                  : "text-zinc-600 hover:text-gray-900 hover:bg-gray-100"
               )}
             >
               <div className="flex items-center flex-1">
@@ -94,29 +129,7 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
           ))}
         </div>
 
-        {user?.role === "SUPER_ADMIN" && (
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <div className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Administração
-            </div>
-            <Link
-              href="/admin/super"
-              onClick={onLinkClick}
-              className={cn(
-                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer rounded-lg transition",
-                pathname === "/admin/super"
-                  ? "bg-blue-50 text-blue-700 font-bold"
-                  : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
-              )}
-            >
-              <div className="flex items-center flex-1">
-                <ShieldCheck className="h-5 w-5 mr-3 text-blue-600" />
-                Painel Admin
-              </div>
-            </Link>
-          </div>
-        )}
-
+        {/* Link para Loja Pública (Apenas Donos) */}
         {publicStoreUrl && (
           <div className="px-2 mt-auto pt-6">
             <Link
@@ -136,11 +149,11 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
         )}
       </div>
 
-      {/* Botão de Sair */}
+      {/* RODAPÉ / SAIR */}
       <div className="px-3 py-2 border-t bg-gray-50/50">
         <Button
           variant="ghost"
-          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 hover:shadow-sm transition-all"
           onClick={handleLogout}
         >
           <LogOut className="h-5 w-5 mr-3" />
