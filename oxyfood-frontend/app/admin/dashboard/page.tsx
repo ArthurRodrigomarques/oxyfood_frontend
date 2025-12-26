@@ -51,7 +51,7 @@ interface RestaurantDetails {
 export default function DashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { activeRestaurantId, user } = useAuthStore();
+  const { activeRestaurantId, user, logout } = useAuthStore();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -143,12 +143,21 @@ export default function DashboardPage() {
     if (!activeRestaurantId) return;
 
     const token = localStorage.getItem("oxyfood-token");
-    const socketUrl = "http://localhost:3333";
+    if (!token) {
+      logout();
+      router.replace("/login");
+      return;
+    }
+
+    const socketUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
     const socket = io(socketUrl, {
       auth: {
         token: token,
       },
+
+      reconnectionAttempts: 3,
     });
 
     socket.on("connect", () => {
@@ -158,6 +167,16 @@ export default function DashboardPage() {
 
     socket.on("connect_error", (err) => {
       console.error("Erro de conexão no socket:", err.message);
+
+      if (
+        err.message.includes("Token inválido") ||
+        err.message.includes("expirado")
+      ) {
+        toast.error("Sessão expirada. Por favor, faça login novamente.");
+        socket.disconnect();
+        logout();
+        router.replace("/login");
+      }
     });
 
     socket.on("new-order", (newOrder) => {
@@ -177,7 +196,7 @@ export default function DashboardPage() {
     return () => {
       socket.disconnect();
     };
-  }, [activeRestaurantId, queryClient]);
+  }, [activeRestaurantId, queryClient, logout, router]);
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: async ({

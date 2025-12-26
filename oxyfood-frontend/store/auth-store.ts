@@ -5,6 +5,8 @@ interface RestaurantInfo {
   id: string;
   name: string;
   slug: string;
+  subscriptionStatus: "ACTIVE" | "INACTIVE" | "OVERDUE" | string;
+  cpfCnpj: string | null;
 }
 interface User {
   id: string;
