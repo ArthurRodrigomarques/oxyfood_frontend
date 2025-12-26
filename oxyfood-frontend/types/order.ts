@@ -31,7 +31,6 @@ export interface Order {
   customerPhone: string;
   customerAddress: string;
 
-  // Valores
   subTotalPrice: number | string;
   deliveryFee: number | string;
   totalPrice: number | string;
@@ -101,6 +100,7 @@ export interface RestaurantData {
   phoneNumber: string;
   cpfCnpj: string | null;
   maxDeliveryDistanceKm?: number;
+  subscriptionStatus: "ACTIVE" | "INACTIVE" | "OVERDUE";
 
   isOpen: boolean;
   deliveryFee: number | string;
